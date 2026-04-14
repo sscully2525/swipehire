@@ -125,15 +125,16 @@ router.post('/checkout', authenticate, async (req, res) => {
     );
     
     if (existingSub.rows.length > 0 && existingSub.rows[0].stripe_customer_id) {
-      customerId = existingSub.rows[0].stripe_customer_id;
+      customerId = existingSub.rows[0].stripe_customer_id as string;
     } else {
       const user = await findUserById(req.userId);
-      if (!user?.email) {
+      const userEmail = user?.email;
+      if (!userEmail) {
         return res.status(400).json({ error: 'User email not found' });
       }
       const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: { userId: req.userId }
+        email: userEmail,
+        metadata: { userId: req.userId || '' }
       });
       customerId = customer.id;
     }
@@ -150,7 +151,7 @@ router.post('/checkout', authenticate, async (req, res) => {
       success_url: `${clientUrl}/profile?success=true`,
       cancel_url: `${clientUrl}/profile?canceled=true`,
       metadata: {
-        userId: req.userId,
+        userId: req.userId || '',
         planId: planId
       }
     });
@@ -180,7 +181,7 @@ router.post('/portal', authenticate, async (req, res) => {
     
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     const session = await stripe.billingPortal.sessions.create({
-      customer: result.rows[0].stripe_customer_id,
+      customer: result.rows[0].stripe_customer_id as string,
       return_url: `${clientUrl}/profile`
     });
     
@@ -214,8 +215,10 @@ router.post('/webhook', async (req, res) => {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const { userId, planId } = session.metadata || {};
+        const customer = session.customer;
+        const subscription = session.subscription;
         
-        if (userId && planId && session.customer && session.subscription) {
+        if (userId && planId && customer && subscription) {
           // Create subscription record
           await query(
             `INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, tier, status, current_period_start, current_period_end)
@@ -224,7 +227,7 @@ router.post('/webhook', async (req, res) => {
                status = 'active',
                current_period_start = to_timestamp($5),
                current_period_end = to_timestamp($6)`,
-            [userId, session.customer as string, session.subscription as string, planId, session.created, session.expires_at || Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60]
+            [userId, customer as string, subscription as string, planId, session.created, session.expires_at || Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60]
           );
           
           // Update user tier

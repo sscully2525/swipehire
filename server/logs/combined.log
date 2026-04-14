@@ -4133,3 +4133,52 @@
 {"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:15:36.809Z","userAgent":"Wget"}
 {"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:15:49.583Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
 {"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:16:06.858Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:16:19.583Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:16:36.914Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:16:49.598Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:17:06.974Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:17:19.585Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:17:37.081Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:17:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:18:07.124Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:18:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:18:37.183Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:18:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:19:07.246Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:19:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:19:37.302Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:19:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:20:07.378Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:20:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:20:37.438Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:20:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:21:07.513Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:21:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:21:37.565Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:21:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:22:07.634Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:22:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:22:37.686Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:22:49.585Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:23:07.744Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:23:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:23:37.789Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:23:49.591Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:24:07.858Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:24:19.585Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:24:37.913Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:24:49.585Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:25:07.976Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:25:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:25:38.073Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:25:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:26:08.145Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:26:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:26:38.199Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:26:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:27:08.240Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:27:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:27:38.303Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:27:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T21:28:08.352Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T21:28:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}

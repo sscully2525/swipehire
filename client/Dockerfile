@@ -20,4 +20,5 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+# Use shell form to ensure proper execution
+CMD nginx -g 'daemon off;'

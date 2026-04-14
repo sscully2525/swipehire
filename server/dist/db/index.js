@@ -7,16 +7,25 @@ exports.initDB = exports.getClient = exports.query = void 0;
 const pg_1 = require("pg");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
-const pool = new pg_1.Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'swipehire',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'password',
-    max: 20, // Maximum number of clients in the pool
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-});
+// Use DATABASE_URL if available (Railway provides this), otherwise use individual vars
+const pool = process.env.DATABASE_URL
+    ? new pg_1.Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+    })
+    : new pg_1.Pool({
+        host: process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.DB_PORT || '5432'),
+        database: process.env.DB_NAME || 'swipehire',
+        user: process.env.DB_USER || 'postgres',
+        password: process.env.DB_PASSWORD || 'password',
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+    });
 pool.on('error', (err) => {
     console.error('Unexpected error on idle client', err);
     process.exit(-1);
@@ -31,6 +40,10 @@ const initDB = async () => {
         await client.query('BEGIN');
         // Enable UUID extension
         await client.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+        // Add role column if not exists
+        await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'candidate'
+    `).catch(() => { });
         // Users table - enhanced
         await client.query(`
       CREATE TABLE IF NOT EXISTS users (

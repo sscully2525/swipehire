@@ -118,7 +118,32 @@ app.use((err, req, res, next) => {
 });
 // Socket.io handlers
 (0, handlers_1.initSocketHandlers)(io);
+// Auto-initialize database and create default admin
+const db_1 = require("./db");
+const db_2 = require("./db");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const uuid_1 = require("uuid");
+const setupDatabase = async () => {
+    try {
+        await (0, db_1.initDB)();
+        exports.logger.info('✅ Database initialized');
+        // Check if admin exists
+        const adminResult = await (0, db_2.query)("SELECT * FROM users WHERE email = 'admin@swipehire.com'");
+        if (adminResult.rows.length === 0) {
+            // Create default admin
+            const id = (0, uuid_1.v4)();
+            const passwordHash = await bcryptjs_1.default.hash('admin123', 12);
+            await (0, db_2.query)(`INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, onboarding_completed)
+         VALUES ($1, $2, $3, $4, $5, 'admin', true, true)`, [id, 'admin@swipehire.com', passwordHash, 'Admin', 'User']);
+            exports.logger.info('✅ Default admin created: admin@swipehire.com / admin123');
+        }
+    }
+    catch (err) {
+        exports.logger.error('❌ Database setup failed:', err);
+    }
+};
 httpServer.listen(PORT, () => {
     exports.logger.info(`🚀 SwipeHire server v2.0 running on port ${PORT}`);
+    setupDatabase();
 });
 //# sourceMappingURL=index.js.map

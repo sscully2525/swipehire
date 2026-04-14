@@ -106,6 +106,11 @@ router.get('/plans', async (req, res) => {
 // Create checkout session
 router.post('/checkout', authenticate, async (req, res) => {
   try {
+    const userId = req.userId as string;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
     const { planId } = req.body;
     const plan = PLANS[planId];
     
@@ -121,20 +126,20 @@ router.post('/checkout', authenticate, async (req, res) => {
     let customerId: string | null = null;
     const existingSub = await query(
       'SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1 LIMIT 1',
-      [req.userId]
+      [userId]
     );
     
     if (existingSub.rows.length > 0 && existingSub.rows[0].stripe_customer_id) {
-      customerId = existingSub.rows[0].stripe_customer_id;
+      customerId = existingSub.rows[0].stripe_customer_id as string;
     } else {
-      const user = await findUserById(req.userId);
+      const user = await findUserById(userId);
       const userEmail = user?.email;
       if (!userEmail) {
         return res.status(400).json({ error: 'User email not found' });
       }
       const customer = await stripe.customers.create({
-        email: userEmail,
-        metadata: { userId: req.userId || '' }
+        email: userEmail!,
+        metadata: { userId }
       });
       customerId = customer.id;
     }
@@ -145,7 +150,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
+      customer: customerId!,
       line_items: [{
         price: plan.priceId,
         quantity: 1
@@ -154,7 +159,7 @@ router.post('/checkout', authenticate, async (req, res) => {
       success_url: `${clientUrl}/profile?success=true`,
       cancel_url: `${clientUrl}/profile?canceled=true`,
       metadata: {
-        userId: req.userId || '',
+        userId,
         planId: planId
       }
     });
@@ -173,9 +178,10 @@ router.post('/checkout', authenticate, async (req, res) => {
 // Create billing portal session
 router.post('/portal', authenticate, async (req, res) => {
   try {
+    const userId = req.userId as string;
     const result = await query(
       'SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1 LIMIT 1',
-      [req.userId]
+      [userId]
     );
     
     if (result.rows.length === 0 || !result.rows[0].stripe_customer_id) {

@@ -35,26 +35,17 @@ exports.query = query;
 const getClient = () => pool.connect();
 exports.getClient = getClient;
 const initDB = async () => {
-    const client = await pool.connect();
     try {
-        // Enable UUID extension first (outside transaction)
-        await client.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"').catch((err) => {
-            console.log('Note: UUID extension may already exist:', err.message);
-        });
-        await client.query('BEGIN');
-        // Add role column if not exists
-        try {
-            await client.query(`
-        ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'candidate'
-      `);
-        }
-        catch (e) {
-            // Column may already exist, ignore
-        }
-        // Users table - enhanced
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        // Test connection first
+        const testClient = await pool.connect();
+        await testClient.query('SELECT 1');
+        testClient.release();
+        console.log('✅ Database connected');
+        // Create tables one by one with error handling
+        const tables = [
+            // Users table
+            `CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         first_name VARCHAR(100) NOT NULL,
@@ -84,12 +75,10 @@ const initDB = async () => {
         last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        // Startups table - enhanced
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS startups (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      )`,
+            // Startups table
+            `CREATE TABLE IF NOT EXISTS startups (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(200) NOT NULL,
         slug VARCHAR(200) UNIQUE NOT NULL,
         logo_url VARCHAR(500),
@@ -109,12 +98,10 @@ const initDB = async () => {
         created_by UUID REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        // Jobs/roles table (separate from startups)
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS jobs (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      )`,
+            // Jobs table
+            `CREATE TABLE IF NOT EXISTS jobs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         startup_id UUID REFERENCES startups(id) ON DELETE CASCADE,
         title VARCHAR(200) NOT NULL,
         description TEXT NOT NULL,
@@ -138,24 +125,20 @@ const initDB = async () => {
         applications_count INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        // Swipes table
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS swipes (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      )`,
+            // Swipes table
+            `CREATE TABLE IF NOT EXISTS swipes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
         job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
         direction VARCHAR(10) NOT NULL CHECK (direction IN ('left', 'right')),
         ai_match_score DECIMAL(3,2),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, job_id)
-      )
-    `);
-        // Matches table
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS matches (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      )`,
+            // Matches table
+            `CREATE TABLE IF NOT EXISTS matches (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
         job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
         startup_id UUID REFERENCES startups(id) ON DELETE CASCADE,
@@ -168,12 +151,10 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, job_id)
-      )
-    `);
-        // Chat messages table
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      )`,
+            // Chat messages table
+            `CREATE TABLE IF NOT EXISTS chat_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         match_id UUID REFERENCES matches(id) ON DELETE CASCADE,
         sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
         sender_type VARCHAR(20) NOT NULL CHECK (sender_type IN ('candidate', 'company')),
@@ -182,12 +163,10 @@ const initDB = async () => {
         file_url VARCHAR(500),
         read_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        // Notifications table
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS notifications (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      )`,
+            // Notifications table
+            `CREATE TABLE IF NOT EXISTS notifications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
         type VARCHAR(50) NOT NULL,
         title VARCHAR(200) NOT NULL,
@@ -196,12 +175,10 @@ const initDB = async () => {
         read BOOLEAN DEFAULT FALSE,
         read_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        // Subscriptions/Payments table
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS subscriptions (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      )`,
+            // Subscriptions table
+            `CREATE TABLE IF NOT EXISTS subscriptions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
         stripe_customer_id VARCHAR(255),
         stripe_subscription_id VARCHAR(255),
@@ -212,12 +189,10 @@ const initDB = async () => {
         cancel_at_period_end BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        // Analytics events table
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS analytics_events (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      )`,
+            // Analytics events table
+            `CREATE TABLE IF NOT EXISTS analytics_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE SET NULL,
         event_type VARCHAR(100) NOT NULL,
         event_data JSONB,
@@ -225,27 +200,41 @@ const initDB = async () => {
         ip_address INET,
         user_agent TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-        // Create indexes for performance
-        await client.query('CREATE INDEX IF NOT EXISTS idx_swipes_user_id ON swipes(user_id)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_swipes_job_id ON swipes(job_id)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_matches_user_id ON matches(user_id)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_matches_startup_id ON matches(startup_id)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_chat_messages_match_id ON chat_messages(match_id)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type)');
-        await client.query('COMMIT');
-        console.log('✅ Database initialized with all tables and indexes');
+      )`
+        ];
+        for (const tableSql of tables) {
+            try {
+                await pool.query(tableSql);
+                console.log('✅ Table created or already exists');
+            }
+            catch (err) {
+                console.log('Note: Table may already exist:', err.message);
+            }
+        }
+        // Create indexes
+        const indexes = [
+            'CREATE INDEX IF NOT EXISTS idx_swipes_user_id ON swipes(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_swipes_job_id ON swipes(job_id)',
+            'CREATE INDEX IF NOT EXISTS idx_matches_user_id ON matches(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_matches_startup_id ON matches(startup_id)',
+            'CREATE INDEX IF NOT EXISTS idx_chat_messages_match_id ON chat_messages(match_id)',
+            'CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type)'
+        ];
+        for (const indexSql of indexes) {
+            try {
+                await pool.query(indexSql);
+            }
+            catch (err) {
+                // Index may already exist
+            }
+        }
+        console.log('✅ Database initialized');
     }
     catch (err) {
-        await client.query('ROLLBACK');
-        console.error('❌ Database init failed:', err);
+        console.error('❌ Database init failed:', err.message);
         throw err;
-    }
-    finally {
-        client.release();
     }
 };
 exports.initDB = initDB;

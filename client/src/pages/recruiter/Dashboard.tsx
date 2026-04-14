@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import api from '../lib/api';
+import api from '../../lib/api';
 import toast from 'react-hot-toast';
 
 function RecruiterDashboard() {

@@ -118,14 +118,14 @@ router.post('/checkout', authenticate, async (req, res) => {
     }
     
     // Get or create Stripe customer
-    let customerId: string;
+    let customerId = '';
     const existingSub = await query(
       'SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1 LIMIT 1',
       [req.userId]
     );
     
     if (existingSub.rows.length > 0 && existingSub.rows[0].stripe_customer_id) {
-      customerId = existingSub.rows[0].stripe_customer_id as string;
+      customerId = existingSub.rows[0].stripe_customer_id || '';
     } else {
       const user = await findUserById(req.userId);
       const userEmail = user?.email;
@@ -140,6 +140,10 @@ router.post('/checkout', authenticate, async (req, res) => {
     }
     
     // Create checkout session
+    if (!customerId) {
+      return res.status(400).json({ error: 'Failed to get or create customer' });
+    }
+    
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     const session = await stripe.checkout.sessions.create({
       customer: customerId,

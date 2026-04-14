@@ -128,14 +128,18 @@ router.post('/checkout', authenticate, async (req, res) => {
       customerId = existingSub.rows[0].stripe_customer_id;
     } else {
       const user = await findUserById(req.userId);
+      if (!user?.email) {
+        return res.status(400).json({ error: 'User email not found' });
+      }
       const customer = await stripe.customers.create({
-        email: user?.email,
+        email: user.email,
         metadata: { userId: req.userId }
       });
       customerId = customer.id;
     }
     
     // Create checkout session
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [{
@@ -143,13 +147,17 @@ router.post('/checkout', authenticate, async (req, res) => {
         quantity: 1
       }],
       mode: 'subscription',
-      success_url: `${process.env.CLIENT_URL}/profile?success=true`,
-      cancel_url: `${process.env.CLIENT_URL}/profile?canceled=true`,
+      success_url: `${clientUrl}/profile?success=true`,
+      cancel_url: `${clientUrl}/profile?canceled=true`,
       metadata: {
         userId: req.userId,
         planId: planId
       }
     });
+    
+    if (!session.url) {
+      return res.status(500).json({ error: 'Failed to create checkout session' });
+    }
     
     res.json({ sessionId: session.id, url: session.url });
   } catch (error) {
@@ -170,9 +178,10 @@ router.post('/portal', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'No subscription found' });
     }
     
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     const session = await stripe.billingPortal.sessions.create({
       customer: result.rows[0].stripe_customer_id,
-      return_url: `${process.env.CLIENT_URL}/profile`
+      return_url: `${clientUrl}/profile`
     });
     
     res.json({ url: session.url });
@@ -206,7 +215,7 @@ router.post('/webhook', async (req, res) => {
         const session = event.data.object as Stripe.Checkout.Session;
         const { userId, planId } = session.metadata || {};
         
-        if (userId && planId) {
+        if (userId && planId && session.customer && session.subscription) {
           // Create subscription record
           await query(
             `INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, tier, status, current_period_start, current_period_end)
@@ -215,7 +224,7 @@ router.post('/webhook', async (req, res) => {
                status = 'active',
                current_period_start = to_timestamp($5),
                current_period_end = to_timestamp($6)`,
-            [userId, session.customer, session.subscription, planId, session.created, session.expires_at]
+            [userId, session.customer as string, session.subscription as string, planId, session.created, session.expires_at || Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60]
           );
           
           // Update user tier

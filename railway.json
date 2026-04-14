@@ -1,6 +1,13 @@
 {
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "nixpacksPlan": {
+      "phases": {
+        "setup": {
+          "nixPkgs": ["nodejs_20", "npm-10_x"]
+        }
+      }
+    }
   },
   "deploy": {
     "startCommand": "cd server && npm install && npm run build && npm start",

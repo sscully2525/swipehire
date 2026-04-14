@@ -3905,3 +3905,23 @@
 {"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:18:29.880Z","userAgent":"Wget"}
 {"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:18:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
 {"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:18:59.922Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:19:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:19:29.986Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:19:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:20:00.035Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:20:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:20:30.086Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:20:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:21:00.146Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:21:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:21:30.254Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:21:49.585Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:22:00.309Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:22:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:22:30.378Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:22:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:23:00.426Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:23:19.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:23:30.481Z","userAgent":"Wget"}
+{"ip":"::ffff:172.18.0.5","level":"info","message":"GET /api/notifications/unread-count","timestamp":"2026-04-14T20:23:49.584Z","userAgent":"Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"}
+{"ip":"::1","level":"info","message":"GET /api/health","timestamp":"2026-04-14T20:24:00.549Z","userAgent":"Wget"}

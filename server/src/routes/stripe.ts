@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import Stripe from 'stripe';
 import { query } from '../db';
-import { findUserById, getSwipeLimit } from '../models/user';
+import { findUserById } from '../models/user';
 import { verifyAccessToken } from '../models/user';
 
 const router = Router();
@@ -26,7 +26,16 @@ const authenticate = (req: any, res: any, next: any) => {
 };
 
 // Subscription plans
-const PLANS = {
+interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  swipeLimit: number;
+  features: string[];
+  priceId?: string;
+}
+
+const PLANS: Record<string, Plan> = {
   free: {
     id: 'free',
     name: 'Free',
@@ -38,7 +47,7 @@ const PLANS = {
     id: 'pro',
     name: 'Pro',
     priceId: process.env.STRIPE_PRO_PRICE_ID || 'price_pro_dummy',
-    price: 1999, // $19.99
+    price: 1999,
     swipeLimit: 50,
     features: ['50 swipes per day', 'See who liked you', 'Advanced filters', 'Priority matching', 'Read receipts']
   },
@@ -46,7 +55,7 @@ const PLANS = {
     id: 'unlimited',
     name: 'Unlimited',
     priceId: process.env.STRIPE_UNLIMITED_PRICE_ID || 'price_unlimited_dummy',
-    price: 3999, // $39.99
+    price: 3999,
     swipeLimit: 999999,
     features: ['Unlimited swipes', 'See who liked you', 'Advanced filters', 'Priority matching', 'Read receipts', 'Profile boost', 'AI career coach']
   }
@@ -63,8 +72,6 @@ router.get('/subscription', authenticate, async (req, res) => {
       [req.userId]
     );
     
-    const user = await findUserById(req.userId);
-    
     if (result.rows.length === 0) {
       return res.json({
         tier: 'free',
@@ -75,7 +82,7 @@ router.get('/subscription', authenticate, async (req, res) => {
     }
     
     const sub = result.rows[0];
-    const plan = PLANS[sub.tier as keyof typeof PLANS];
+    const plan = PLANS[sub.tier];
     
     res.json({
       tier: sub.tier,
@@ -100,10 +107,14 @@ router.get('/plans', async (req, res) => {
 router.post('/checkout', authenticate, async (req, res) => {
   try {
     const { planId } = req.body;
-    const plan = PLANS[planId as keyof typeof PLANS];
+    const plan = PLANS[planId];
     
     if (!plan || planId === 'free') {
       return res.status(400).json({ error: 'Invalid plan' });
+    }
+    
+    if (!plan.priceId) {
+      return res.status(400).json({ error: 'Plan not configured' });
     }
     
     // Get or create Stripe customer

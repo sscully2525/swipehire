@@ -34,15 +34,21 @@ export const getClient = () => pool.connect();
 export const initDB = async () => {
   const client = await pool.connect();
   try {
+    // Enable UUID extension first (outside transaction)
+    await client.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"').catch((err) => {
+      console.log('Note: UUID extension may already exist:', err.message);
+    });
+
     await client.query('BEGIN');
 
-    // Enable UUID extension
-    await client.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
-
     // Add role column if not exists
-    await client.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'candidate'
-    `).catch(() => {});
+    try {
+      await client.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'candidate'
+      `);
+    } catch (e) {
+      // Column may already exist, ignore
+    }
 
     // Users table - enhanced
     await client.query(`

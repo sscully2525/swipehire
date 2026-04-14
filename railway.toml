@@ -1,0 +1,24 @@
+# Railway Deployment Configuration
+# Save this as railway.toml in the root directory
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "./server/Dockerfile"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[deploy.env]
+NODE_ENV = "production"
+PORT = "3001"
+
+# Required environment variables (set in Railway dashboard):
+# - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+# - REDIS_URL
+# - JWT_SECRET (generate with: openssl rand -base64 32)
+# - JWT_REFRESH_SECRET (different from JWT_SECRET)
+# - STRIPE_SECRET_KEY (optional, for payments)

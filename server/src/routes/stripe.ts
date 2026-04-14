@@ -118,14 +118,14 @@ router.post('/checkout', authenticate, async (req, res) => {
     }
     
     // Get or create Stripe customer
-    let customerId = '';
+    let customerId: string | null = null;
     const existingSub = await query(
       'SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1 LIMIT 1',
       [req.userId]
     );
     
     if (existingSub.rows.length > 0 && existingSub.rows[0].stripe_customer_id) {
-      customerId = existingSub.rows[0].stripe_customer_id || '';
+      customerId = existingSub.rows[0].stripe_customer_id;
     } else {
       const user = await findUserById(req.userId);
       const userEmail = user?.email;
@@ -139,7 +139,6 @@ router.post('/checkout', authenticate, async (req, res) => {
       customerId = customer.id;
     }
     
-    // Create checkout session
     if (!customerId) {
       return res.status(400).json({ error: 'Failed to get or create customer' });
     }
@@ -185,7 +184,7 @@ router.post('/portal', authenticate, async (req, res) => {
     
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     const session = await stripe.billingPortal.sessions.create({
-      customer: result.rows[0].stripe_customer_id as string,
+      customer: result.rows[0].stripe_customer_id,
       return_url: `${clientUrl}/profile`
     });
     
@@ -223,7 +222,6 @@ router.post('/webhook', async (req, res) => {
         const subscription = session.subscription;
         
         if (userId && planId && customer && subscription) {
-          // Create subscription record
           await query(
             `INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, tier, status, current_period_start, current_period_end)
              VALUES ($1, $2, $3, $4, 'active', to_timestamp($5), to_timestamp($6))
@@ -234,7 +232,6 @@ router.post('/webhook', async (req, res) => {
             [userId, customer as string, subscription as string, planId, session.created, session.expires_at || Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60]
           );
           
-          // Update user tier
           await query(
             'UPDATE users SET subscription_tier = $1 WHERE id = $2',
             [planId, userId]
@@ -265,7 +262,6 @@ router.post('/webhook', async (req, res) => {
           [subscription.id]
         );
         
-        // Revert to free tier
         await query(
           `UPDATE users SET subscription_tier = 'free'
            WHERE id = (SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1)`,

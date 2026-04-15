@@ -1,0 +1,218 @@
+# SwipeHire - Testing & Development Guide
+
+## Local Development with Docker
+
+### Prerequisites
+- Docker
+- Docker Compose
+
+### Start Local Environment
+
+```bash
+# Start all services
+docker-compose -f docker-compose.dev.yml up
+
+# Or start in background
+docker-compose -f docker-compose.dev.yml up -d
+
+# View logs
+docker-compose -f docker-compose.dev.yml logs -f
+
+# Stop services
+docker-compose -f docker-compose.dev.yml down
+```
+
+### Services
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:3001
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+
+### Default Credentials (Local)
+- Admin: `admin@swipehire.com` / `admin123`
+- Database: `postgres` / `password`
+
+## Running Tests
+
+### Install Playwright
+```bash
+cd e2e
+npm install
+npx playwright install
+```
+
+### Run Tests
+```bash
+# Run all tests
+npx playwright test
+
+# Run specific test file
+npx playwright test swipehire.spec.ts
+
+# Run with UI mode
+npx playwright test --ui
+
+# Run in headed mode (see browser)
+npx playwright test --headed
+
+# Run specific project
+npx playwright test --project=chromium
+```
+
+### View Test Results
+```bash
+# Show HTML report
+npx playwright show-report
+```
+
+## API Testing
+
+### Using API Tester Page
+1. Log in to the application
+2. Navigate to `/api-tester`
+3. Select endpoints from the list
+4. Click "Send Request"
+
+### Using curl
+
+```bash
+# Health check
+curl http://localhost:3001/api/health
+
+# Seed sample companies
+curl http://localhost:3001/api/setup/seed-sample-companies
+
+# Login
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@swipehire.com", "password": "admin123"}'
+
+# Get profile (requires token)
+curl http://localhost:3001/api/profile-enhanced/full \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+## Database Management
+
+### Connect to PostgreSQL
+```bash
+# Using docker
+docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d swipehire
+
+# Using local psql
+psql postgresql://postgres:password@localhost:5432/swipehire
+```
+
+### Common Queries
+```sql
+-- View all tables
+\dt
+
+-- View users
+SELECT * FROM users;
+
+-- View jobs
+SELECT * FROM jobs;
+
+-- View matches
+SELECT * FROM matches;
+
+-- Clear all swipes for testing
+DELETE FROM swipes WHERE user_id = 'USER_ID';
+```
+
+### Connect to Redis
+```bash
+# Using docker
+docker-compose -f docker-compose.dev.yml exec redis redis-cli
+
+# Clear all keys
+FLUSHALL
+
+# View keys
+KEYS *
+```
+
+## Feature Checklist
+
+### Authentication
+- [ ] User signup
+- [ ] User login
+- [ ] Recruiter signup
+- [ ] Token refresh
+- [ ] Logout
+
+### Profile
+- [ ] View profile
+- [ ] Edit basic info
+- [ ] Add work experience
+- [ ] Add education
+- [ ] Add skills
+- [ ] Upload resume
+- [ ] Add links (LinkedIn, GitHub, Portfolio)
+
+### Swipe
+- [ ] View jobs
+- [ ] Swipe right (like)
+- [ ] Swipe left (pass)
+- [ ] Filters (remote, salary, stage, tech)
+- [ ] Daily swipe limit
+
+### Matches
+- [ ] View matches
+- [ ] Send messages
+- [ ] Receive messages (real-time)
+- [ ] Unmatch
+- [ ] View match details
+
+### Subscription
+- [ ] View plans
+- [ ] Upgrade to Pro
+- [ ] Upgrade to Unlimited
+- [ ] View current subscription
+
+### Company/Recruiter
+- [ ] Post jobs
+- [ ] View candidates
+- [ ] Match with candidates
+- [ ] Message candidates
+
+## Troubleshooting
+
+### Jobs not showing
+1. Check if companies are seeded: `curl /api/setup/seed-sample-companies`
+2. Check if user has already swiped on all jobs
+3. Clear swipes: `curl -X POST /api/setup/clear-swipes`
+
+### Messages duplicating
+- Fixed in latest version - messages now check for existing IDs
+
+### Database connection errors
+1. Ensure PostgreSQL is running: `docker-compose ps`
+2. Check logs: `docker-compose logs postgres`
+3. Restart: `docker-compose restart postgres`
+
+### Redis connection errors
+1. Ensure Redis is running: `docker-compose ps`
+2. Check logs: `docker-compose logs redis`
+3. Restart: `docker-compose restart redis`
+
+## Deployment
+
+### Railway Deployment
+1. Push code to GitHub
+2. Railway auto-deploys
+3. Set environment variables in Railway dashboard
+4. Run database migrations (auto on startup)
+
+### Environment Variables Required
+```
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://...
+JWT_SECRET=...
+JWT_REFRESH_SECRET=...
+STRIPE_SECRET_KEY=...
+STRIPE_PRO_PRICE_ID=...
+STRIPE_UNLIMITED_PRICE_ID=...
+CLIENT_URL=https://...
+```

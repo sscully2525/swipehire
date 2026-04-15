@@ -46,7 +46,12 @@ function Matches() {
       setSocket(newSocket);
 
       newSocket.on('new_message', (message) => {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          // Check if message already exists to prevent duplicates
+          const exists = prev.some(m => m.id === message.id);
+          if (exists) return prev;
+          return [...prev, message];
+        });
       });
 
       return () => {

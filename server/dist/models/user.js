@@ -11,16 +11,16 @@ const uuid_1 = require("uuid");
 const index_1 = require("../index");
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
-const createUser = async (email, password, firstName, lastName) => {
+const createUser = async (email, password, firstName, lastName, role = 'candidate') => {
     const passwordHash = await bcryptjs_1.default.hash(password, 12);
     const id = (0, uuid_1.v4)();
-    const result = await (0, db_1.query)(`INSERT INTO users (id, email, password_hash, first_name, last_name, daily_swipes)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    const result = await (0, db_1.query)(`INSERT INTO users (id, email, password_hash, first_name, last_name, daily_swipes, role)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id, email, first_name, last_name, title, bio, skills, linkedin_url, 
                github_url, portfolio_url, resume_url, avatar_url, video_intro_url,
                location, years_experience, preferred_salary_min, preferred_salary_max,
                remote_preference, daily_swipes, subscription_tier, email_verified,
-               linkedin_verified, identity_verified, onboarding_completed, last_active_at`, [id, email, passwordHash, firstName, lastName, 10]);
+               linkedin_verified, identity_verified, onboarding_completed, last_active_at`, [id, email, passwordHash, firstName, lastName, 10, role]);
     return result.rows[0];
 };
 exports.createUser = createUser;

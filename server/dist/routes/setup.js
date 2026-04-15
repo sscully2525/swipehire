@@ -367,5 +367,17 @@ router.get('/admin-stats', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch admin stats' });
     }
 });
+// Clear all swipes for a user (for testing)
+router.post('/clear-swipes', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        await (0, db_1.query)('DELETE FROM swipes WHERE user_id = $1', [userId]);
+        res.json({ message: 'All swipes cleared' });
+    }
+    catch (error) {
+        console.error('Clear swipes error:', error);
+        res.status(500).json({ error: 'Failed to clear swipes' });
+    }
+});
 exports.default = router;
 //# sourceMappingURL=setup.js.map

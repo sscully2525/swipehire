@@ -200,6 +200,106 @@ const initDB = async () => {
         ip_address INET,
         user_agent TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+            // Work Experience table
+            `CREATE TABLE IF NOT EXISTS work_experience (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        company_name VARCHAR(200) NOT NULL,
+        title VARCHAR(200) NOT NULL,
+        location VARCHAR(200),
+        start_date DATE NOT NULL,
+        end_date DATE,
+        is_current BOOLEAN DEFAULT FALSE,
+        description TEXT,
+        company_logo_url VARCHAR(500),
+        employment_type VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+            // Education table
+            `CREATE TABLE IF NOT EXISTS education (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        school_name VARCHAR(200) NOT NULL,
+        degree VARCHAR(200),
+        field_of_study VARCHAR(200),
+        start_date DATE,
+        end_date DATE,
+        is_current BOOLEAN DEFAULT FALSE,
+        description TEXT,
+        school_logo_url VARCHAR(500),
+        gpa DECIMAL(3,2),
+        activities TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+            // Honors & Awards table
+            `CREATE TABLE IF NOT EXISTS honors_awards (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(200) NOT NULL,
+        issuer VARCHAR(200),
+        issue_date DATE,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+            // Certifications table
+            `CREATE TABLE IF NOT EXISTS certifications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(200) NOT NULL,
+        issuing_organization VARCHAR(200),
+        issue_date DATE,
+        expiration_date DATE,
+        credential_id VARCHAR(200),
+        credential_url VARCHAR(500),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+            // Projects table
+            `CREATE TABLE IF NOT EXISTS projects (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(200) NOT NULL,
+        description TEXT,
+        url VARCHAR(500),
+        start_date DATE,
+        end_date DATE,
+        is_current BOOLEAN DEFAULT FALSE,
+        technologies TEXT[],
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+            // Languages table
+            `CREATE TABLE IF NOT EXISTS languages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        language VARCHAR(100) NOT NULL,
+        proficiency VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+            // Volunteer Experience table
+            `CREATE TABLE IF NOT EXISTS volunteer_experience (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        organization VARCHAR(200) NOT NULL,
+        role VARCHAR(200) NOT NULL,
+        start_date DATE,
+        end_date DATE,
+        is_current BOOLEAN DEFAULT FALSE,
+        description TEXT,
+        cause VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+            // Publications table
+            `CREATE TABLE IF NOT EXISTS publications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(500) NOT NULL,
+        publisher VARCHAR(200),
+        publication_date DATE,
+        url VARCHAR(500),
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
         ];
         for (const tableSql of tables) {
@@ -220,7 +320,15 @@ const initDB = async () => {
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_match_id ON chat_messages(match_id)',
             'CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)',
             'CREATE INDEX IF NOT EXISTS idx_analytics_events_user_id ON analytics_events(user_id)',
-            'CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type)'
+            'CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type)',
+            'CREATE INDEX IF NOT EXISTS idx_work_experience_user_id ON work_experience(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_education_user_id ON education(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_honors_awards_user_id ON honors_awards(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_certifications_user_id ON certifications(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_languages_user_id ON languages(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_volunteer_experience_user_id ON volunteer_experience(user_id)',
+            'CREATE INDEX IF NOT EXISTS idx_publications_user_id ON publications(user_id)'
         ];
         for (const indexSql of indexes) {
             try {

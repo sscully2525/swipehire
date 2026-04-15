@@ -39,20 +39,21 @@ export const createUser = async (
   email: string,
   password: string,
   firstName: string,
-  lastName: string
+  lastName: string,
+  role: string = 'candidate'
 ): Promise<User> => {
   const passwordHash = await bcrypt.hash(password, 12);
   const id = uuidv4();
   
   const result = await query(
-    `INSERT INTO users (id, email, password_hash, first_name, last_name, daily_swipes)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO users (id, email, password_hash, first_name, last_name, daily_swipes, role)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id, email, first_name, last_name, title, bio, skills, linkedin_url, 
                github_url, portfolio_url, resume_url, avatar_url, video_intro_url,
                location, years_experience, preferred_salary_min, preferred_salary_max,
                remote_preference, daily_swipes, subscription_tier, email_verified,
                linkedin_verified, identity_verified, onboarding_completed, last_active_at`,
-    [id, email, passwordHash, firstName, lastName, 10]
+    [id, email, passwordHash, firstName, lastName, 10, role]
   );
   
   return result.rows[0];

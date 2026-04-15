@@ -97,4 +97,35 @@ router.put('/:id/status', authenticate, [
   }
 });
 
+// Unmatch - remove match for both sides
+router.delete('/:id', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { query } = await import('../db');
+    const match = await getMatchById(req.params.id);
+    
+    if (!match || match.user_id !== req.userId!) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+    
+    // Create notification for the other party
+    await query(
+      `INSERT INTO notifications (user_id, type, title, message, data)
+       VALUES ($1, 'match_removed', 'Match Removed', $2, $3)`,
+      [
+        match.startup_id,
+        'A candidate has unmatched with your company',
+        JSON.stringify({ matchId: req.params.id, jobId: match.job_id })
+      ]
+    );
+    
+    // Delete the match
+    await query('DELETE FROM matches WHERE id = $1', [req.params.id]);
+    
+    res.json({ message: 'Match removed successfully' });
+  } catch (error) {
+    console.error('Unmatch error:', error);
+    res.status(500).json({ error: 'Failed to remove match' });
+  }
+});
+
 export default router;

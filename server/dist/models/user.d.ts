@@ -25,7 +25,7 @@ export interface User {
     onboarding_completed: boolean;
     last_active_at?: Date;
 }
-export declare const createUser: (email: string, password: string, firstName: string, lastName: string) => Promise<User>;
+export declare const createUser: (email: string, password: string, firstName: string, lastName: string, role?: string) => Promise<User>;
 export declare const findUserByEmail: (email: string) => Promise<any>;
 export declare const findUserById: (id: string) => Promise<User | null>;
 export declare const updateUser: (id: string, updates: Partial<User>) => Promise<User>;

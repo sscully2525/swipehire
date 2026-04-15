@@ -440,13 +440,6 @@ router.post('/clear-swipes', async (req, res) => {
   try {
     const { userId } = req.body;
     await query('DELETE FROM swipes WHERE user_id = $1', [userId]);
-    
-    // Clear Redis cache
-    const keys = await redis.keys('jobs:*');
-    for (const key of keys) {
-      await redis.del(key);
-    }
-    
     res.json({ message: 'All swipes cleared' });
   } catch (error) {
     console.error('Clear swipes error:', error);

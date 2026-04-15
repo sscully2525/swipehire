@@ -365,7 +365,10 @@ function Profile() {
               <p className="font-medium text-gray-900">Current Plan</p>
               <p className="text-sm text-gray-500 capitalize">{user.subscriptionTier}</p>
             </div>
-            <button className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700">
+            <button 
+              onClick={() => window.location.href = '/subscription'}
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700"
+            >
               Upgrade
             </button>
           </div>

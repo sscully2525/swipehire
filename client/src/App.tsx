@@ -12,6 +12,7 @@ import Swipe from './pages/Swipe';
 import Matches from './pages/Matches';
 import Profile from './pages/Profile';
 import Analytics from './pages/Analytics';
+import Subscription from './pages/Subscription';
 import Layout from './components/Layout';
 
 // Recruiter Pages
@@ -102,6 +103,10 @@ function App() {
           <Route 
             path="/analytics" 
             element={isAuthenticated ? <Analytics /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/subscription" 
+            element={isAuthenticated ? <Subscription /> : <Navigate to="/login" />} 
           />
         </Route>
 

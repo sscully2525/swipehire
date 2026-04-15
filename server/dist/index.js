@@ -28,6 +28,8 @@ const stripe_1 = __importDefault(require("./routes/stripe"));
 const recruiter_1 = __importDefault(require("./routes/recruiter"));
 const setup_1 = __importDefault(require("./routes/setup"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
+const verification_1 = __importDefault(require("./routes/verification"));
+const location_1 = __importDefault(require("./routes/location"));
 const handlers_1 = require("./socket/handlers");
 dotenv_1.default.config();
 // Logger
@@ -107,6 +109,8 @@ app.use('/api/stripe', stripe_1.default);
 app.use('/api/recruiter', recruiter_1.default);
 app.use('/api/setup', setup_1.default);
 app.use('/api/notifications', notifications_1.default);
+app.use('/api/verify', verification_1.default);
+app.use('/api/location', location_1.default);
 // Health check
 app.get('/api/health', async (req, res) => {
     const redisHealth = exports.redis.isReady ? 'connected' : 'disconnected';

@@ -23,6 +23,8 @@ import stripeRoutes from './routes/stripe';
 import recruiterRoutes from './routes/recruiter';
 import setupRoutes from './routes/setup';
 import notificationRoutes from './routes/notifications';
+import verificationRoutes from './routes/verification';
+import locationRoutes from './routes/location';
 import { initSocketHandlers } from './socket/handlers';
 
 dotenv.config();
@@ -120,6 +122,8 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/recruiter', recruiterRoutes);
 app.use('/api/setup', setupRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/verify', verificationRoutes);
+app.use('/api/location', locationRoutes);
 
 // Health check
 app.get('/api/health', async (req, res) => {

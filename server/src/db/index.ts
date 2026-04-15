@@ -86,6 +86,8 @@ export const initDB = async () => {
         mission TEXT,
         stage VARCHAR(50) NOT NULL,
         location VARCHAR(200),
+        lat DECIMAL(10, 8),
+        lng DECIMAL(11, 8),
         remote_policy VARCHAR(50) DEFAULT 'hybrid',
         size VARCHAR(50),
         website VARCHAR(500),
@@ -314,6 +316,57 @@ export const initDB = async () => {
         url VARCHAR(500),
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // Verification codes table
+      `CREATE TABLE IF NOT EXISTS verification_codes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        code VARCHAR(50) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // Verification documents table
+      `CREATE TABLE IF NOT EXISTS verification_documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        document_type VARCHAR(50) NOT NULL,
+        document_url VARCHAR(500) NOT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        reviewed_by UUID REFERENCES users(id),
+        reviewed_at TIMESTAMP,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // Verification requests table
+      `CREATE TABLE IF NOT EXISTS verification_requests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        data JSONB,
+        status VARCHAR(50) DEFAULT 'pending',
+        reviewed_by UUID REFERENCES users(id),
+        reviewed_at TIMESTAMP,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // Company verifications table
+      `CREATE TABLE IF NOT EXISTS company_verifications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        startup_id UUID REFERENCES startups(id) ON DELETE CASCADE,
+        method VARCHAR(50) NOT NULL,
+        data JSONB,
+        status VARCHAR(50) DEFAULT 'pending',
+        submitted_by UUID REFERENCES users(id),
+        reviewed_by UUID REFERENCES users(id),
+        reviewed_at TIMESTAMP,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     ];
 
@@ -343,7 +396,11 @@ export const initDB = async () => {
       'CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_languages_user_id ON languages(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_volunteer_experience_user_id ON volunteer_experience(user_id)',
-      'CREATE INDEX IF NOT EXISTS idx_publications_user_id ON publications(user_id)'
+      'CREATE INDEX IF NOT EXISTS idx_publications_user_id ON publications(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_verification_codes_user_id ON verification_codes(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_verification_documents_user_id ON verification_documents(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_verification_requests_user_id ON verification_requests(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_company_verifications_startup_id ON company_verifications(startup_id)'
     ];
 
     for (const indexSql of indexes) {

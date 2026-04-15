@@ -38,9 +38,19 @@ function ApiTester() {
   const [token, setToken] = useState<string>('');
 
   useEffect(() => {
-    // Try to get token from localStorage (stored by auth store)
-    const storedToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
-    if (storedToken) setToken(storedToken);
+    // Get token from Zustand persist storage
+    try {
+      const authData = localStorage.getItem('swipehire-auth');
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        if (parsed.state?.accessToken) {
+          setToken(parsed.state.accessToken);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load auth token');
+    }
+    
     if (selectedEndpoint.body) {
       setRequestBody(JSON.stringify(selectedEndpoint.body, null, 2));
     } else {

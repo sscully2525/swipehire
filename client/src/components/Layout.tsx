@@ -4,9 +4,7 @@ import {
   Briefcase, 
   Heart, 
   MessageSquare, 
-  User, 
   BarChart3, 
-  LogOut,
   Search,
   Bell,
   Grid3X3

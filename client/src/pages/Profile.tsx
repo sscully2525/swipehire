@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/auth';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { 
-  Briefcase, GraduationCap, Award, Certificate, 
-  Globe, Heart, BookOpen, Languages, Users, X,
-  Plus, Edit2, Trash2, Camera, FileText, Link as LinkIcon,
-  Github, Linkedin, ExternalLink, MapPin, Calendar
+  Briefcase, GraduationCap, Plus, Edit2, Camera, FileText,
+  ExternalLink, MapPin
 } from 'lucide-react';
 
 interface WorkExperience {
@@ -44,14 +42,14 @@ interface ProfileData {
   languages: any[];
   volunteerExperience: any[];
   publications: any[];
+  skills: string[];
 }
 
 function Profile() {
-  const { user, updateUser } = useAuthStore();
+  useAuthStore();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [isEditing, setIsEditing] = useState(false);
+  const [, setIsEditing] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -80,7 +78,7 @@ function Profile() {
     return <div className="text-center py-16">Failed to load profile</div>;
   }
 
-  const { user: userData, workExperience, education, skills } = profile;
+  const { user: userData, workExperience, education } = profile;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -280,7 +278,7 @@ function Profile() {
             </div>
             
             <div className="flex flex-wrap gap-2">
-              {userData?.skills?.map((skill: string) => (
+              {(userData?.skills || []).map((skill: string) => (
                 <span key={skill} className="badge-primary">
                   {skill}
                 </span>
@@ -323,14 +321,14 @@ function Profile() {
               {userData?.linkedin_url && (
                 <a href={userData.linkedin_url} target="_blank" rel="noopener noreferrer" 
                    className="flex items-center text-[#0A66C2] hover:underline">
-                  <Linkedin className="w-4 h-4 mr-2" />
+                  <ExternalLink className="w-4 h-4 mr-2" />
                   LinkedIn
                 </a>
               )}
               {userData?.github_url && (
                 <a href={userData.github_url} target="_blank" rel="noopener noreferrer"
                    className="flex items-center text-[#0A66C2] hover:underline">
-                  <Github className="w-4 h-4 mr-2" />
+                  <ExternalLink className="w-4 h-4 mr-2" />
                   GitHub
                 </a>
               )}

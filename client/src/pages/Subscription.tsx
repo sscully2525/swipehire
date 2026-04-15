@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '../store/auth';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { Check, Sparkles, Zap, Crown } from 'lucide-react';
@@ -14,7 +13,6 @@ interface Plan {
 }
 
 function Subscription() {
-  const { user } = useAuthStore();
   const [plans, setPlans] = useState<Record<string, Plan>>({});
   const [currentPlan, setCurrentPlan] = useState<string>('free');
   const [loading, setLoading] = useState(false);

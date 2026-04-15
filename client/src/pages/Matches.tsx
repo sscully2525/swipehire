@@ -94,10 +94,28 @@ function Matches() {
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedMatch) return;
 
+    const tempMessage = {
+      id: `temp-${Date.now()}`,
+      content: newMessage,
+      sender_id: 'you',
+      sender_type: 'candidate',
+      created_at: new Date().toISOString(),
+      pending: true
+    };
+
+    // Optimistically add message
+    setMessages(prev => [...prev, tempMessage]);
+    setNewMessage('');
+
     try {
-      await api.post(`/chat/${selectedMatch.id}/messages`, {
+      const response = await api.post(`/chat/${selectedMatch.id}/messages`, {
         content: newMessage,
       });
+
+      // Replace temp message with real one
+      setMessages(prev => 
+        prev.map(m => m.id === tempMessage.id ? { ...response.data, pending: false } : m)
+      );
       
       if (socket) {
         socket.emit('send_message', {

@@ -14,6 +14,8 @@ import Profile from './pages/Profile';
 import Analytics from './pages/Analytics';
 import Subscription from './pages/Subscription';
 import ApiTester from './pages/ApiTester';
+import Notifications from './pages/Notifications';
+import Work from './pages/Work';
 import Layout from './components/Layout';
 
 // Recruiter Pages
@@ -112,6 +114,14 @@ function App() {
           <Route 
             path="/api-tester" 
             element={isAuthenticated ? <ApiTester /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/notifications" 
+            element={isAuthenticated ? <Notifications /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/work" 
+            element={isAuthenticated ? <Work /> : <Navigate to="/login" />} 
           />
         </Route>
 

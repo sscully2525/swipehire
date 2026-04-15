@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '../store/auth';
-import api from '../lib/api';
+import { useAuthStore } from '../../store/auth';
+import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import { 
   Briefcase, Users, MessageSquare, TrendingUp, 
   Plus, Edit2, Eye, CheckCircle, XCircle,
-  MapPin, DollarSign, Calendar
+  MapPin, DollarSign
 } from 'lucide-react';
 
 interface Job {
@@ -34,7 +34,7 @@ interface Candidate {
 }
 
 function RecruiterDashboard() {
-  const { user } = useAuthStore();
+  useAuthStore();
   const [activeTab, setActiveTab] = useState('jobs');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);

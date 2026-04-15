@@ -38,7 +38,8 @@ function ApiTester() {
   const [token, setToken] = useState<string>('');
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
+    // Try to get token from localStorage (stored by auth store)
+    const storedToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
     if (storedToken) setToken(storedToken);
     if (selectedEndpoint.body) {
       setRequestBody(JSON.stringify(selectedEndpoint.body, null, 2));

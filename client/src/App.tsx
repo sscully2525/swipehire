@@ -16,6 +16,7 @@ import Subscription from './pages/Subscription';
 import ApiTester from './pages/ApiTester';
 import Notifications from './pages/Notifications';
 import Work from './pages/Work';
+import Messages from './pages/Messages';
 import Layout from './components/Layout';
 
 // Recruiter Pages
@@ -122,6 +123,10 @@ function App() {
           <Route 
             path="/work" 
             element={isAuthenticated ? <Work /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/messages" 
+            element={isAuthenticated ? <Messages /> : <Navigate to="/login" />} 
           />
         </Route>
 

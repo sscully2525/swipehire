@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
+import api from '../lib/api';
 import { 
   Briefcase, 
   Heart, 
@@ -14,6 +16,22 @@ function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, clearAuth } = useAuthStore();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await api.get('/notifications/unread-count');
+      setUnreadCount(response.data.count);
+    } catch (err) {
+      // Silently fail
+    }
+  };
 
   const handleLogout = () => {
     clearAuth();
@@ -23,7 +41,7 @@ function Layout() {
   const navItems = [
     { path: '/swipe', label: 'Jobs', icon: Briefcase },
     { path: '/matches', label: 'Matches', icon: Heart },
-    { path: '/matches', label: 'Messages', icon: MessageSquare },
+    { path: '/messages', label: 'Messages', icon: MessageSquare },
     { path: '/analytics', label: 'Insights', icon: BarChart3 },
   ];
 
@@ -71,7 +89,9 @@ function Layout() {
               {/* Notifications */}
               <Link to="/notifications" className={`nav-link relative ${isActive('/notifications') ? 'active' : ''}`}>
                 <Bell className="w-6 h-6" />
-                <span className="absolute top-0 right-2 w-2 h-2 bg-red-500 rounded-full" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-2 w-2 h-2 bg-red-500 rounded-full" />
+                )}
                 <span className="text-xs mt-0.5">Notifications</span>
               </Link>
 

@@ -23,7 +23,7 @@ function Layout() {
   const navItems = [
     { path: '/swipe', label: 'Jobs', icon: Briefcase },
     { path: '/matches', label: 'Matches', icon: Heart },
-    { path: '/messages', label: 'Messages', icon: MessageSquare },
+    { path: '/matches', label: 'Messages', icon: MessageSquare },
     { path: '/analytics', label: 'Insights', icon: BarChart3 },
   ];
 
@@ -69,11 +69,11 @@ function Layout() {
               ))}
 
               {/* Notifications */}
-              <button className="nav-link relative">
+              <Link to="/notifications" className={`nav-link relative ${isActive('/notifications') ? 'active' : ''}`}>
                 <Bell className="w-6 h-6" />
                 <span className="absolute top-0 right-2 w-2 h-2 bg-red-500 rounded-full" />
                 <span className="text-xs mt-0.5">Notifications</span>
-              </button>
+              </Link>
 
               {/* Profile Dropdown */}
               <div className="relative group">
@@ -111,10 +111,10 @@ function Layout() {
               </div>
 
               {/* Work Grid */}
-              <button className="nav-link border-l border-[#E0E0E0] ml-2 pl-4">
+              <Link to="/work" className={`nav-link border-l border-[#E0E0E0] ml-2 pl-4 ${isActive('/work') ? 'active' : ''}`}>
                 <Grid3X3 className="w-6 h-6" />
                 <span className="text-xs mt-0.5">Work</span>
-              </button>
+              </Link>
             </nav>
           </div>
         </div>

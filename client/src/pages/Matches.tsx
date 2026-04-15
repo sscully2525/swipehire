@@ -47,8 +47,12 @@ function Matches() {
 
       newSocket.on('new_message', (message) => {
         setMessages((prev) => {
-          // Check if message already exists to prevent duplicates
-          const exists = prev.some(m => m.id === message.id);
+          // Check if message already exists (by id or content+timestamp for temp messages)
+          const exists = prev.some(m => 
+            m.id === message.id || 
+            (m.content === message.content && m.sender_id === message.sender_id && 
+             Math.abs(new Date(m.created_at).getTime() - new Date(message.created_at).getTime()) < 5000)
+          );
           if (exists) return prev;
           return [...prev, message];
         });
@@ -94,39 +98,25 @@ function Matches() {
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedMatch) return;
 
-    const tempMessage = {
-      id: `temp-${Date.now()}`,
-      content: newMessage,
-      sender_id: 'you',
-      sender_type: 'candidate',
-      created_at: new Date().toISOString(),
-      pending: true
-    };
-
-    // Optimistically add message
-    setMessages(prev => [...prev, tempMessage]);
+    const messageContent = newMessage.trim();
     setNewMessage('');
 
     try {
+      // Send via API - server will handle socket broadcast
       const response = await api.post(`/chat/${selectedMatch.id}/messages`, {
-        content: newMessage,
+        content: messageContent,
       });
 
-      // Replace temp message with real one
-      setMessages(prev => 
-        prev.map(m => m.id === tempMessage.id ? { ...response.data, pending: false } : m)
-      );
-      
-      if (socket) {
-        socket.emit('send_message', {
-          matchId: selectedMatch.id,
-          content: newMessage,
-        });
-      }
-      
-      setNewMessage('');
+      // Add message locally (server broadcasts to others, not sender)
+      setMessages(prev => {
+        // Check if already exists
+        const exists = prev.some(m => m.id === response.data.id);
+        if (exists) return prev;
+        return [...prev, response.data];
+      });
     } catch (err) {
       toast.error('Failed to send message');
+      setNewMessage(messageContent); // Restore message on error
     }
   };
 

@@ -48,6 +48,10 @@ redis.on('error', (err) => logger.error('Redis Client Error', err));
 redis.connect();
 
 const app = express();
+
+// Trust proxy (required for rate limiting behind nginx)
+app.set('trust proxy', 1);
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {

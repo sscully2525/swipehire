@@ -45,6 +45,8 @@ exports.redis = (0, redis_1.createClient)({
 exports.redis.on('error', (err) => exports.logger.error('Redis Client Error', err));
 exports.redis.connect();
 const app = (0, express_1.default)();
+// Trust proxy (required for rate limiting behind nginx)
+app.set('trust proxy', 1);
 const httpServer = (0, http_1.createServer)(app);
 const io = new socket_io_1.Server(httpServer, {
     cors: {

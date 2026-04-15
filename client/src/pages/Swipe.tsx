@@ -52,10 +52,12 @@ function Swipe() {
       const params = new URLSearchParams();
       if (filters.remote) params.append('remote', 'true');
       if (filters.minSalary) params.append('minSalary', filters.minSalary);
-      if (filters.stages.length) params.append('stages', filters.stages.join(','));
-      if (filters.tech.length) params.append('tech', filters.tech.join(','));
+      if (filters.stages && filters.stages.length > 0) params.append('stages', filters.stages.join(','));
+      if (filters.tech && filters.tech.length > 0) params.append('tech', filters.tech.join(','));
       
-      const response = await api.get(`/startups?${params}`);
+      const queryString = params.toString();
+      const url = queryString ? `/startups?${queryString}` : '/startups';
+      const response = await api.get(url);
       setJobs(response.data);
       setCurrentIndex(0);
     } catch (err) {

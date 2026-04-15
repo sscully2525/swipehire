@@ -13,6 +13,7 @@ import Matches from './pages/Matches';
 import Profile from './pages/Profile';
 import Analytics from './pages/Analytics';
 import Subscription from './pages/Subscription';
+import ApiTester from './pages/ApiTester';
 import Layout from './components/Layout';
 
 // Recruiter Pages
@@ -107,6 +108,10 @@ function App() {
           <Route 
             path="/subscription" 
             element={isAuthenticated ? <Subscription /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/api-tester" 
+            element={isAuthenticated ? <ApiTester /> : <Navigate to="/login" />} 
           />
         </Route>
 

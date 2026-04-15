@@ -1,3 +1,123 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #0A66C2;
+    --color-primary-hover: #004182;
+    --color-primary-light: #E3F0FE;
+    --color-background: #F3F2EF;
+    --color-surface: #FFFFFF;
+    --color-border: #E0E0E0;
+    --color-text: #191919;
+    --color-text-secondary: #666666;
+    --color-text-muted: #8C8C8C;
+  }
+
+  * {
+    @apply box-border;
+  }
+
+  html {
+    @apply antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body {
+    @apply bg-[#F3F2EF] text-[#191919] leading-relaxed;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-lg border border-[#E0E0E0] shadow-sm;
+  }
+
+  .card-hover {
+    @apply card transition-shadow hover:shadow-md;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-[#0A66C2] text-white rounded-full font-medium 
+           transition-colors hover:bg-[#004182] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-transparent text-[#0A66C2] border border-[#0A66C2] 
+           rounded-full font-medium transition-colors hover:bg-[#E3F0FE];
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 bg-transparent text-[#666666] rounded-full font-medium 
+           transition-colors hover:bg-[#F3F2EF] hover:text-[#191919];
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 border border-[#E0E0E0] rounded-md 
+           focus:outline-none focus:ring-2 focus:ring-[#0A66C2] focus:border-transparent
+           placeholder:text-[#8C8C8C];
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-[#191919];
+  }
+
+  .text-body {
+    @apply text-sm text-[#666666] leading-relaxed;
+  }
+
+  .text-caption {
+    @apply text-xs text-[#8C8C8C];
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-[#E3F0FE] text-[#0A66C2];
+  }
+
+  .badge-secondary {
+    @apply badge bg-[#F3F2EF] text-[#666666];
+  }
+
+  .badge-success {
+    @apply badge bg-[#E6F7F0] text-[#057642];
+  }
+
+  .divider {
+    @apply border-t border-[#E0E0E0];
+  }
+
+  .nav-link {
+    @apply flex flex-col items-center px-3 py-1 text-[#666666] hover:text-[#191919] 
+           transition-colors relative;
+  }
+
+  .nav-link.active {
+    @apply text-[#191919];
+  }
+
+  .nav-link.active::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-[#191919] rounded-full;
+  }
+}
+
+@layer utilities {
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}

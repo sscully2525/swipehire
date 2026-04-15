@@ -21,6 +21,7 @@ import aiRoutes from './routes/ai';
 import stripeRoutes from './routes/stripe';
 import recruiterRoutes from './routes/recruiter';
 import setupRoutes from './routes/setup';
+import notificationRoutes from './routes/notifications';
 import { initSocketHandlers } from './socket/handlers';
 
 dotenv.config();
@@ -116,6 +117,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/recruiter', recruiterRoutes);
 app.use('/api/setup', setupRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', async (req, res) => {

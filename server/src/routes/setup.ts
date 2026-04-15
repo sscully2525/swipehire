@@ -211,6 +211,86 @@ router.post('/seed-admin-company', async (req, res) => {
 });
 
 // Seed 50 sample companies - available to all users
+router.get('/seed-sample-companies', async (req, res) => {
+  try {
+    // Check if already seeded
+    const existingCount = await query('SELECT COUNT(*) as count FROM startups');
+    if (parseInt(existingCount.rows[0].count) > 1) {
+      return res.json({ message: 'Sample companies already seeded', count: existingCount.rows[0].count });
+    }
+
+    let createdCount = 0;
+    
+    for (const company of SAMPLE_COMPANIES) {
+      try {
+        const startupId = uuidv4();
+        await query(
+          `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [
+            startupId,
+            company.name,
+            company.slug,
+            company.description,
+            company.mission,
+            company.stage,
+            company.location,
+            company.size,
+            company.website,
+            true,
+            Math.random() > 0.7, // 30% featured
+            null
+          ]
+        );
+        
+        // Create 1-3 jobs for each company
+        const numJobs = Math.floor(Math.random() * 3) + 1;
+        for (let i = 0; i < numJobs; i++) {
+          const jobId = uuidv4();
+          const title = JOB_TITLES[Math.floor(Math.random() * JOB_TITLES.length)];
+          const techStack = TECH_STACKS[Math.floor(Math.random() * TECH_STACKS.length)];
+          const salaryMin = 80000 + Math.floor(Math.random() * 50000);
+          const salaryMax = salaryMin + 40000 + Math.floor(Math.random() * 60000);
+          const equityMin = 0.001 + Math.random() * 0.009;
+          const equityMax = equityMin + 0.005 + Math.random() * 0.01;
+          
+          await query(
+            `INSERT INTO jobs (id, startup_id, title, description, salary_min, salary_max, equity_min, equity_max, location, remote_allowed, tech_stack, experience_level, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')`,
+            [
+              jobId,
+              startupId,
+              title,
+              `Join ${company.name} as a ${title}. Work on cutting-edge technology in a fast-paced environment.`,
+              salaryMin,
+              salaryMax,
+              equityMin,
+              equityMax,
+              company.location,
+              Math.random() > 0.3, // 70% remote allowed
+              techStack,
+              ['junior', 'mid', 'senior'][Math.floor(Math.random() * 3)]
+            ]
+          );
+        }
+        
+        createdCount++;
+      } catch (err) {
+        console.log(`Skipped ${company.name}:`, (err as Error).message);
+      }
+    }
+    
+    res.json({ 
+      message: `Successfully created ${createdCount} sample companies with jobs`,
+      count: createdCount 
+    });
+  } catch (error) {
+    console.error('Seed sample companies error:', error);
+    res.status(500).json({ error: 'Failed to seed sample companies' });
+  }
+});
+
+// Seed 50 sample companies - POST version
 router.post('/seed-sample-companies', async (req, res) => {
   try {
     // Check if already seeded

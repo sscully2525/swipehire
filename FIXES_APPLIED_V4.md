@@ -16,6 +16,7 @@
 
 ## API audit/hardening
 - Found current production location APIs returning 500 due older DBs missing `lat`/`lng`; migration now backfills those columns with `ADD COLUMN IF NOT EXISTS`.
+- Fixed Docker production packaging so `server/migrations/` is copied into the Railway image and startup migrations actually run before serving traffic.
 - Removed stale/dangerous API tester entries that pointed at setup/seed endpoints and fixed auth signup path references.
 - Added tests proving demo-company jobs are excluded from candidate feed and direct job lookup.
 - Continued structured logging cleanup across older route files (`profile`, `profile-enhanced`, `stripe`, `verification`, `matches`, `swipes`, `admin`).
@@ -24,4 +25,4 @@
 - Server: lint ✅, build ✅, tests 17/17 ✅, production-dependency audit 0 vulnerabilities ✅
 - Client: lint ✅, build ✅, production-dependency audit 0 vulnerabilities ✅
 - Mobile: TypeScript check ✅
-- Production pre-deploy API smoke found location endpoint failures; migration included to fix them on deploy.
+- Production pre-deploy API smoke found location endpoint failures; migration plus Docker packaging fix included to apply the fix on deploy.

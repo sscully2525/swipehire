@@ -30,7 +30,10 @@ function Notifications() {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications().then(() => {
+      // Auto-clear badge when page is opened
+      api.put('/notifications/read-all').catch(() => {});
+    });
   }, []);
 
   const fetchNotifications = async () => {

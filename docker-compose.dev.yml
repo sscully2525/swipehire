@@ -1,4 +1,5 @@
-version: '3.8'
+# Local development compose. Uses NODE_ENV=development so the server tolerates
+# weak/missing secrets. Do NOT use this for production.
 
 services:
   postgres:
@@ -30,9 +31,8 @@ services:
       retries: 5
 
   server:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
+    image: node:20-alpine
+    working_dir: /app
     environment:
       NODE_ENV: development
       PORT: 3001
@@ -53,25 +53,25 @@ services:
         condition: service_healthy
     volumes:
       - ./server:/app
-      - /app/node_modules
-    command: npm run dev
+      - server_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev"
 
   client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
+    image: node:20-alpine
+    working_dir: /app
     environment:
-      VITE_API_URL: http://localhost:3001
-      VITE_SOCKET_URL: http://localhost:3001
+      VITE_API_URL: ""
     ports:
       - "3000:3000"
     depends_on:
       - server
     volumes:
       - ./client:/app
-      - /app/node_modules
-    command: npm run dev
+      - client_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
 
 volumes:
   postgres_data:
   redis_data:
+  server_node_modules:
+  client_node_modules:

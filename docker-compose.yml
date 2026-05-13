@@ -1,4 +1,8 @@
-version: '3.8'
+# Production docker-compose. Required env vars (set in a .env file in this directory
+# or in your shell):
+#   DB_PASSWORD, JWT_SECRET, JWT_REFRESH_SECRET, CLIENT_URL, SETUP_TOKEN
+# Optional: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRO_PRICE_ID,
+#           STRIPE_UNLIMITED_PRICE_ID, SEED_DEFAULT_ADMIN, DEFAULT_ADMIN_PASSWORD
 
 services:
   postgres:
@@ -6,7 +10,7 @@ services:
     environment:
       POSTGRES_DB: swipehire
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -16,11 +20,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -28,6 +31,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   server:
     build:
@@ -40,10 +44,18 @@ services:
       DB_PORT: 5432
       DB_NAME: swipehire
       DB_USER: postgres
-      DB_PASSWORD: ${DB_PASSWORD:-password}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-too}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required (>=32 chars)}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required (>=32 chars)}
+      CLIENT_URL: ${CLIENT_URL:?CLIENT_URL is required}
+      SETUP_TOKEN: ${SETUP_TOKEN:?SETUP_TOKEN is required in production}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRO_PRICE_ID: ${STRIPE_PRO_PRICE_ID:-}
+      STRIPE_UNLIMITED_PRICE_ID: ${STRIPE_UNLIMITED_PRICE_ID:-}
+      SEED_DEFAULT_ADMIN: ${SEED_DEFAULT_ADMIN:-false}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-}
     ports:
       - "3001:3001"
     depends_on:
@@ -52,17 +64,22 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./server/logs:/app/logs
+      - server_logs:/app/logs
+    restart: unless-stopped
 
   client:
     build:
       context: ./client
       dockerfile: Dockerfile
+    environment:
+      API_PROXY_TARGET: http://server:3001
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - server
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
+  server_logs:

@@ -1,30 +1,44 @@
-FROM node:20-alpine
+# --- Build stage ---
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies
+# Build-only native deps
 RUN apk add --no-cache python3 make g++
 
-# Copy package files
 COPY package*.json ./
+RUN npm ci --no-audit --no-fund
 
-# Install ALL dependencies (including devDependencies for build)
-RUN npm ci
-
-# Copy source code
 COPY . .
-
-# Build TypeScript
 RUN npm run build
 
-# Remove devDependencies after build
-RUN npm prune --production
+# Drop dev deps to reduce size of node_modules that we copy below.
+RUN npm prune --omit=dev
 
-# Create logs directory
-RUN mkdir -p logs
 
-# Expose port
+# --- Runtime stage ---
+FROM node:20-alpine AS runtime
+
+WORKDIR /app
+
+# wget is used by the healthcheck below.
+RUN apk add --no-cache wget && \
+    addgroup -S app && adduser -S app -G app
+
+# Copy build output + pruned production node_modules
+COPY --from=builder --chown=app:app /app/dist ./dist
+COPY --from=builder --chown=app:app /app/node_modules ./node_modules
+COPY --from=builder --chown=app:app /app/package*.json ./
+
+# Logs directory writable by the app user
+RUN mkdir -p /app/logs && chown -R app:app /app/logs
+
+USER app
+
+ENV NODE_ENV=production
 EXPOSE 3001
 
-# Start the server
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3001/api/health || exit 1
+
 CMD ["node", "dist/index.js"]

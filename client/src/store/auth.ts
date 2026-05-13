@@ -8,6 +8,7 @@ export interface User {
   lastName: string;
   role: 'candidate' | 'recruiter' | 'admin';
   title?: string;
+  role?: string;
   dailySwipes: number;
   subscriptionTier: string;
   onboardingCompleted: boolean;

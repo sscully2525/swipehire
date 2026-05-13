@@ -12,7 +12,15 @@ export const useSocket = () => {
   useEffect(() => {
     if (!accessToken) return;
 
-    socketRef.current = io('/', {
+    // Prefer VITE_SOCKET_URL, fall back to VITE_API_URL, then same-origin.
+    // Previously this was hard-coded to '/' which meant cross-origin
+    // deployments (Railway pattern) silently failed to connect.
+    const socketUrl =
+      (import.meta.env.VITE_SOCKET_URL as string | undefined) ||
+      (import.meta.env.VITE_API_URL as string | undefined) ||
+      '/';
+
+    socketRef.current = io(socketUrl, {
       auth: { token: accessToken },
       transports: ['websocket'],
     });

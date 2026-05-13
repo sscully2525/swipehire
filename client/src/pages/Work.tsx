@@ -1,41 +1,34 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { 
+import {
   Briefcase, Building2, Users, MessageSquare, BarChart3,
-  Settings, HelpCircle, FileText, Shield, ChevronRight,
-  Bookmark, Eye, TrendingUp, Lock, User, LogOut
+  Settings, ChevronRight, Bookmark, Eye, TrendingUp, Lock, User, LogOut
 } from 'lucide-react';
 import api from '../lib/api';
 import { useAuthStore } from '../store/auth';
 import toast from 'react-hot-toast';
 
-interface JobApplication {
+interface Match {
   id: string;
   job_title: string;
-  company_name: string;
-  status: string;
-  applied_at: string;
-}
-
-interface SavedJob {
-  id: string;
-  title: string;
   startup_name: string;
+  startup_logo: string | null;
+  job_location: string;
   salary_min: number;
   salary_max: number;
-  location: string;
+  status: string;
+  created_at: string;
+  startup_id: string;
 }
 
 function Work() {
   const { user, clearAuth } = useAuthStore();
   const [activeTab, setActiveTab] = useState('overview');
-  const [applications, setApplications] = useState<JobApplication[]>([]);
-  const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState({
-    profileViews: 0,
-    searchAppearances: 0,
-    applications: 0,
+    totalMatches: 0,
+    rightSwipes: 0,
     savedJobs: 0
   });
 
@@ -45,24 +38,18 @@ function Work() {
 
   const fetchWorkData = async () => {
     try {
-      // Fetch applications
-      const appsRes = await api.get('/profile/applications').catch(() => ({ data: [] }));
-      setApplications(appsRes.data);
+      const matchesRes = await api.get('/matches').catch(() => ({ data: [] }));
+      const matchList: Match[] = Array.isArray(matchesRes.data) ? matchesRes.data : [];
+      setMatches(matchList);
 
-      // Fetch saved jobs
-      const savedRes = await api.get('/profile/saved-jobs').catch(() => ({ data: [] }));
-      setSavedJobs(savedRes.data);
-
-      // Fetch stats
-      const statsRes = await api.get('/analytics/dashboard').catch(() => ({ data: {} }));
+      const swipeRes = await api.get('/swipes/stats').catch(() => ({ data: {} }));
       setStats({
-        profileViews: statsRes.data?.profileViews || 0,
-        searchAppearances: statsRes.data?.searchAppearances || 0,
-        applications: appsRes.data?.length || 0,
-        savedJobs: savedRes.data?.length || 0
+        totalMatches: matchList.length,
+        rightSwipes: parseInt(swipeRes.data?.right_swipes || '0'),
+        savedJobs: 0
       });
-    } catch (err) {
-      console.error('Failed to fetch work data');
+    } catch {
+      toast.error('Failed to load work data');
     }
   };
 
@@ -106,22 +93,22 @@ function Work() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Stats Grid */}
-          <div className="grid md:grid-cols-4 gap-4">
-            <motion.div 
+          <div className="grid md:grid-cols-3 gap-4">
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="card p-4"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#666666]">Profile Views</p>
-                  <p className="text-2xl font-bold text-[#191919]">{stats.profileViews}</p>
+                  <p className="text-sm text-[#666666]">Total Matches</p>
+                  <p className="text-2xl font-bold text-[#191919]">{stats.totalMatches}</p>
                 </div>
                 <Eye className="w-8 h-8 text-[#0A66C2]" />
               </div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
@@ -129,14 +116,14 @@ function Work() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#666666]">Search Appearances</p>
-                  <p className="text-2xl font-bold text-[#191919]">{stats.searchAppearances}</p>
+                  <p className="text-sm text-[#666666]">Right Swipes</p>
+                  <p className="text-2xl font-bold text-[#191919]">{stats.rightSwipes}</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-600" />
               </div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
@@ -144,25 +131,12 @@ function Work() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#666666]">Applications</p>
-                  <p className="text-2xl font-bold text-[#191919]">{stats.applications}</p>
+                  <p className="text-sm text-[#666666]">Companies Matched</p>
+                  <p className="text-2xl font-bold text-[#191919]">
+                    {new Set(matches.map(m => m.startup_id)).size}
+                  </p>
                 </div>
-                <Briefcase className="w-8 h-8 text-purple-600" />
-              </div>
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="card p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[#666666]">Saved Jobs</p>
-                  <p className="text-2xl font-bold text-[#191919]">{stats.savedJobs}</p>
-                </div>
-                <Bookmark className="w-8 h-8 text-orange-600" />
+                <Building2 className="w-8 h-8 text-purple-600" />
               </div>
             </motion.div>
           </div>
@@ -194,30 +168,30 @@ function Work() {
         </div>
       )}
 
-      {/* My Jobs Tab */}
+      {/* My Jobs Tab — shows matches as job applications */}
       {activeTab === 'jobs' && (
         <div className="space-y-4">
-          <h2 className="section-title">Applied Jobs</h2>
-          {applications.length === 0 ? (
+          <h2 className="section-title">Matched Jobs</h2>
+          {matches.length === 0 ? (
             <div className="text-center py-12 card">
               <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No applications yet</p>
+              <p className="text-gray-500">No matches yet</p>
               <Link to="/swipe" className="text-[#0A66C2] font-medium hover:underline mt-2 inline-block">
-                Start applying
+                Start swiping
               </Link>
             </div>
           ) : (
-            applications.map((app) => (
-              <div key={app.id} className="card p-4">
+            matches.map((m) => (
+              <div key={m.id} className="card p-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-semibold text-[#191919]">{app.job_title}</h3>
-                    <p className="text-[#666666]">{app.company_name}</p>
+                    <h3 className="font-semibold text-[#191919]">{m.job_title}</h3>
+                    <p className="text-[#666666]">{m.startup_name}</p>
                     <p className="text-sm text-[#8C8C8C] mt-1">
-                      Applied {new Date(app.applied_at).toLocaleDateString()}
+                      Matched {new Date(m.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <span className="badge-primary capitalize">{app.status}</span>
+                  <span className="badge-primary capitalize">{m.status || 'pending'}</span>
                 </div>
               </div>
             ))
@@ -225,43 +199,79 @@ function Work() {
         </div>
       )}
 
-      {/* Saved Jobs Tab */}
+      {/* Saved Tab — placeholder until save-job API is built */}
       {activeTab === 'saved' && (
+        <div className="text-center py-12 card">
+          <Bookmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">Saved jobs feature coming soon</p>
+          <Link to="/swipe" className="text-[#0A66C2] font-medium hover:underline mt-2 inline-block">
+            Browse jobs
+          </Link>
+        </div>
+      )}
+
+      {/* Companies Tab — unique companies from matches */}
+      {activeTab === 'companies' && (
         <div className="space-y-4">
-          <h2 className="section-title">Saved Jobs</h2>
-          {savedJobs.length === 0 ? (
+          <h2 className="section-title">Companies You've Matched With</h2>
+          {matches.length === 0 ? (
             <div className="text-center py-12 card">
-              <Bookmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No saved jobs yet</p>
+              <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No companies yet — start swiping to get matched</p>
               <Link to="/swipe" className="text-[#0A66C2] font-medium hover:underline mt-2 inline-block">
                 Browse jobs
               </Link>
             </div>
           ) : (
-            savedJobs.map((job) => (
-              <div key={job.id} className="card p-4">
-                <h3 className="font-semibold text-[#191919]">{job.title}</h3>
-                <p className="text-[#666666]">{job.startup_name}</p>
-                <p className="text-sm text-[#8C8C8C]">{job.location}</p>
+            Array.from(new Map(matches.map(m => [m.startup_id, m])).values()).map((m) => (
+              <div key={m.startup_id} className="card p-4 flex items-center space-x-4">
+                <div className="w-12 h-12 bg-[#F3F2EF] rounded-lg flex items-center justify-center flex-shrink-0">
+                  {m.startup_logo
+                    ? <img src={m.startup_logo} alt="" className="w-full h-full rounded-lg object-cover" />
+                    : <Building2 className="w-6 h-6 text-gray-400" />}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-[#191919]">{m.startup_name}</h3>
+                  <p className="text-sm text-[#666666]">{m.job_title}</p>
+                </div>
+                <Link to="/matches" className="text-[#0A66C2] text-sm font-medium hover:underline">
+                  View chat
+                </Link>
               </div>
             ))
           )}
         </div>
       )}
 
-      {/* Companies Tab */}
-      {activeTab === 'companies' && (
-        <div className="text-center py-12 card">
-          <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">Company following coming soon</p>
-        </div>
-      )}
-
-      {/* Connections Tab */}
+      {/* Connections Tab — matches as professional connections */}
       {activeTab === 'connections' && (
-        <div className="text-center py-12 card">
-          <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">Professional network coming soon</p>
+        <div className="space-y-4">
+          <h2 className="section-title">Your Connections</h2>
+          {matches.length === 0 ? (
+            <div className="text-center py-12 card">
+              <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No connections yet</p>
+              <Link to="/swipe" className="text-[#0A66C2] font-medium hover:underline mt-2 inline-block">
+                Start swiping to get matched
+              </Link>
+            </div>
+          ) : (
+            matches.map((m) => (
+              <div key={m.id} className="card p-4 flex items-center space-x-4">
+                <div className="w-12 h-12 bg-[#E3F0FE] rounded-full flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-6 h-6 text-[#0A66C2]" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-[#191919]">{m.startup_name}</h3>
+                  <p className="text-sm text-[#666666]">{m.job_title}</p>
+                  <p className="text-xs text-[#8C8C8C]">Connected {new Date(m.created_at).toLocaleDateString()}</p>
+                </div>
+                <Link to="/messages" className="text-[#0A66C2] text-sm font-medium hover:underline">
+                  Message
+                </Link>
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -279,49 +289,18 @@ function Work() {
             <ChevronRight className="w-5 h-5 text-gray-400" />
           </Link>
 
-          <button 
-            onClick={() => toast.info('Privacy settings coming soon')}
-            className="card p-4 hover:shadow-md transition-shadow flex items-center space-x-4 text-left w-full"
-          >
+          <Link to="/subscription" className="card p-4 hover:shadow-md transition-shadow flex items-center space-x-4">
             <div className="p-3 bg-purple-100 rounded-lg">
               <Lock className="w-6 h-6 text-purple-600" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-[#191919]">Privacy</h3>
-              <p className="text-sm text-[#666666]">Manage your privacy</p>
+              <h3 className="font-semibold text-[#191919]">Subscription</h3>
+              <p className="text-sm text-[#666666]">Manage your plan</p>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400" />
-          </button>
+          </Link>
 
-          <button 
-            onClick={() => toast.info('Resume builder coming soon')}
-            className="card p-4 hover:shadow-md transition-shadow flex items-center space-x-4 text-left w-full"
-          >
-            <div className="p-3 bg-green-100 rounded-lg">
-              <FileText className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-[#191919]">Resume Builder</h3>
-              <p className="text-sm text-[#666666]">Create or update resume</p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-gray-400" />
-          </button>
-
-          <button 
-            onClick={() => toast.info('Help center coming soon')}
-            className="card p-4 hover:shadow-md transition-shadow flex items-center space-x-4 text-left w-full"
-          >
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <HelpCircle className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-[#191919]">Help Center</h3>
-              <p className="text-sm text-[#666666]">Get support and help</p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-gray-400" />
-          </button>
-
-          <button 
+          <button
             onClick={handleLogout}
             className="card p-4 hover:shadow-md transition-shadow flex items-center space-x-4 text-left w-full text-red-600"
           >

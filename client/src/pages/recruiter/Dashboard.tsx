@@ -48,15 +48,29 @@ function RecruiterDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [jobsRes, candidatesRes, statsRes] = await Promise.all([
-        api.get('/recruiter/jobs'),
+      const [companiesRes, candidatesRes, dashboardRes] = await Promise.all([
+        api.get('/recruiter/companies'),
         api.get('/recruiter/candidates'),
-        api.get('/recruiter/stats')
+        api.get('/recruiter/dashboard')
       ]);
-      
-      setJobs(jobsRes.data);
-      setCandidates(candidatesRes.data);
-      setStats(statsRes.data);
+
+      // Collect all jobs from all companies
+      const allJobs: Job[] = [];
+      const companies: any[] = Array.isArray(companiesRes.data) ? companiesRes.data : [];
+      for (const company of companies) {
+        try {
+          const companyRes = await api.get(`/recruiter/companies/${company.id}`);
+          if (Array.isArray(companyRes.data.jobs)) {
+            allJobs.push(...companyRes.data.jobs.map((j: any) => ({ ...j, company_name: company.name })));
+          }
+        } catch {
+          // skip company if fetch fails
+        }
+      }
+
+      setJobs(allJobs);
+      setCandidates(Array.isArray(candidatesRes.data) ? candidatesRes.data : []);
+      setStats(dashboardRes.data);
     } catch (err) {
       toast.error('Failed to load dashboard');
     } finally {
@@ -322,9 +336,38 @@ function RecruiterDashboard() {
       {activeTab === 'analytics' && (
         <div>
           <h2 className="section-title mb-4">Recruitment Analytics</h2>
-          <div className="card p-6">
-            <p className="text-gray-500">Analytics dashboard coming soon...</p>
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="card p-4">
+              <p className="text-sm text-[#666666] mb-1">Total Jobs Posted</p>
+              <p className="text-3xl font-bold text-[#191919]">{stats?.stats?.jobs ?? jobs.length}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-sm text-[#666666] mb-1">Interested Candidates</p>
+              <p className="text-3xl font-bold text-[#191919]">{stats?.stats?.interestedCandidates ?? candidates.length}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-sm text-[#666666] mb-1">Total Matches</p>
+              <p className="text-3xl font-bold text-[#191919]">{stats?.stats?.matches ?? 0}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-sm text-[#666666] mb-1">Companies Managed</p>
+              <p className="text-3xl font-bold text-[#191919]">{stats?.stats?.companies ?? 0}</p>
+            </div>
           </div>
+          {stats?.recentActivity?.length > 0 && (
+            <div className="card p-4">
+              <h3 className="font-semibold text-[#191919] mb-3">Recent Candidate Activity</h3>
+              <div className="space-y-3">
+                {stats.recentActivity.map((a: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-sm">
+                    <span className="text-[#191919]">{a.first_name} {a.last_name}</span>
+                    <span className="text-[#666666]">{a.job_title}</span>
+                    <span className="text-[#8C8C8C]">{new Date(a.created_at).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

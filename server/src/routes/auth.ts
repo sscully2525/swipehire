@@ -1,9 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
-import { 
-  createUser, 
-  findUserByEmail, 
-  verifyPassword, 
+import {
+  createUser,
+  findUserByEmail,
+  findUserById,
+  verifyPassword,
   generateTokens,
   verifyAccessToken,
   verifyRefreshToken,
@@ -205,8 +206,8 @@ router.get('/me', async (req, res) => {
     
     const token = authHeader.split(' ')[1];
     const decoded = verifyAccessToken(token);
-    
-    const user = await findUserByEmail(decoded.userId);
+
+    const user = await findUserById(decoded.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }

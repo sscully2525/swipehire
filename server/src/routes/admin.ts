@@ -19,10 +19,11 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-// Check if user is admin
 const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  // In production, check admin role from JWT or database
-  // For now, allow all authenticated users to see admin stats
+  const result = await query('SELECT role FROM users WHERE id = $1', [req.userId]);
+  if (result.rows.length === 0 || result.rows[0].role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
   next();
 };
 

@@ -26,17 +26,17 @@ function Subscription() {
     try {
       const response = await api.get('/stripe/plans');
       setPlans(response.data);
-    } catch (err) {
-      console.error('Failed to fetch plans');
+    } catch {
+      toast.error('Failed to load subscription plans');
     }
   };
 
   const fetchCurrentSubscription = async () => {
     try {
-      const response = await api.get('/stripe/subscription');
+      const response = await api.get('/payments/subscription');
       setCurrentPlan(response.data.tier);
-    } catch (err) {
-      console.error('Failed to fetch subscription');
+    } catch {
+      // Non-critical — user may still view plans
     }
   };
 

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
@@ -58,25 +59,27 @@ const app = express();
 app.set('trust proxy', 1);
 
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
-    credentials: true
-  }
-});
 
 const PORT = process.env.PORT || 3001;
+
+// In production, client and server are the same origin — no cross-origin requests.
+// In dev, the Vite proxy handles /api, so CORS is only needed for direct access.
+const allowedOrigins = process.env.CLIENT_URL
+  ? [process.env.CLIENT_URL]
+  : ['http://localhost:3000', 'http://localhost:3001'];
+
+const io = new Server(httpServer, {
+  cors: { origin: allowedOrigins, credentials: true }
+});
 
 // Security middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: false,
 }));
+app.use(compression());
 
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -141,8 +144,17 @@ app.get('/api/health', async (req, res) => {
 // Serve React app in production (must come after all API routes)
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.join(__dirname, '../../client/dist');
-  app.use(express.static(clientDist));
+  // Hashed asset files get long-lived cache; everything else gets no-cache
+  app.use(express.static(clientDist, {
+    maxAge: '1y',
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('index.html') || filePath.endsWith('.webmanifest')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    },
+  }));
   app.get('*', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }

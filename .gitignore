@@ -1,8 +1,83 @@
+# Dependencies
 node_modules/
+**/node_modules/
+
+# Build outputs
 dist/
 build/
+out/
+**/dist/
+**/build/
+
+# Environment files
 .env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+
+# Logs
+logs/
 *.log
-.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+**/logs/
+
+# Coverage
 coverage/
+*.lcov
 .nyc_output/
+
+# IDE / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# React Native / Expo
+mobile/.expo/
+mobile/.expo-shared/
+mobile/web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# TypeScript
+*.tsbuildinfo
+
+# Caches
+.cache/
+.parcel-cache/
+.turbo/
+.next/
+.vite/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+.docker/

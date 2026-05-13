@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { createMessage, markMessagesAsRead, getMessagesByMatch } from '../models/chat';
 import { getMatchById } from '../models/swipe';
 import { updateLastActive } from '../models/user';
+import { createNotification } from '../models/notification';
 import { redis } from '../index';
 import { query } from '../db';
 

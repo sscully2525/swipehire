@@ -46,17 +46,17 @@ if (isProduction) {
   const jwtSecret = process.env.JWT_SECRET;
   const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
   if (!jwtSecret || jwtSecret.length < 32 || placeholders.includes(jwtSecret)) {
-    // eslint-disable-next-line no-console
+    
     console.error('FATAL: JWT_SECRET must be set to a strong random value (>= 32 chars) in production.');
     process.exit(1);
   }
   if (!jwtRefreshSecret || jwtRefreshSecret.length < 32 || placeholders.includes(jwtRefreshSecret)) {
-    // eslint-disable-next-line no-console
+    
     console.error('FATAL: JWT_REFRESH_SECRET must be set to a strong random value (>= 32 chars) in production.');
     process.exit(1);
   }
   if (!process.env.CLIENT_URL) {
-    // eslint-disable-next-line no-console
+    
     console.error('FATAL: CLIENT_URL must be set in production (used for CORS).');
     process.exit(1);
   }
@@ -129,11 +129,14 @@ const authLimiter = rateLimit({
   message: 'Too many auth attempts'
 });
 
+// Stripe webhook needs the raw request bytes for signature verification.
+// This MUST be registered before express.json() / express.urlencoded(),
+// otherwise body-parser will consume the stream first and verification
+// will fail. (See AUDIT_REPORT.md — critical fix.)
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-
-// Stripe webhook needs raw body
-app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 
 // Request logging
 app.use((req, res, next) => {
@@ -193,7 +196,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Error handling
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error', { error: err.message, stack: err.stack });
   res.status(500).json({ error: 'Internal server error' });
 });

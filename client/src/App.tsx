@@ -37,8 +37,9 @@ function App() {
   }, []);
 
   const checkAuth = async () => {
-    const stored = useAuthStore.getState();
-    if (!stored.accessToken) {
+    // Tokens live in the Zustand persisted store (`swipehire-auth`).
+    const { accessToken, refreshToken } = useAuthStore.getState();
+    if (!accessToken) {
       setIsLoading(false);
       return;
     }
@@ -57,8 +58,8 @@ function App() {
           subscriptionTier: me.subscriptionTier ?? 'free',
           onboardingCompleted: me.onboardingCompleted ?? false,
         },
-        stored.accessToken!,
-        stored.refreshToken || ''
+        accessToken,
+        refreshToken || ''
       );
     } catch {
       clearAuth();

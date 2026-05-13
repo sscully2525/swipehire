@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import api from '../lib/api';
-import { useAuthStore } from '../store/auth';
 import { MessageSquare, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -25,7 +24,6 @@ interface Match {
 function Messages() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  useAuthStore();
 
   useEffect(() => {
     fetchMatches();

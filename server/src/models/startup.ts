@@ -81,7 +81,7 @@ export const createJob = async (job: Partial<Job>): Promise<Job> => {
 };
 
 export const getJobsForSwiping = async (userId: string, filters?: any): Promise<Job[]> => {
-  const cacheKey = `jobs:v2:${userId}:${JSON.stringify(filters || {})}`;
+  const cacheKey = `jobs:v3:${userId}:${JSON.stringify(filters || {})}`;
   const cached = await redis.get(cacheKey);
   
   if (cached) {

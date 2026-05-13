@@ -2,7 +2,7 @@
 
 ## Demo/fake company cleanup
 - Added `is_demo` and `source` flags to `startups` via migration `006_demo_data_flags.sql`.
-- Marked known seeded/sample companies as demo data, including the setup fixtures and legacy rich seed fixtures.
+- Marked known seeded/sample companies as demo data, including setup fixtures and legacy rich seed fixtures, by both slug and name to catch older production seed runs.
 - Candidate swipe feed now excludes demo-company jobs.
 - Direct job lookup, startup filters, and location/map APIs now exclude demo companies.
 - Seed/sample setup endpoints are dev-only/admin-only and no longer provide a production path for adding fake companies.

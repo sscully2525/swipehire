@@ -47,7 +47,7 @@ function ApiTester() {
           setToken(parsed.state.accessToken);
         }
       }
-    } catch (e) {
+    } catch {
       console.error('Failed to load auth token');
     }
     

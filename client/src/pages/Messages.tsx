@@ -35,7 +35,7 @@ function Messages() {
       // Filter only matches with messages
       const matchesWithMessages = response.data.filter((m: Match) => m.last_message);
       setMatches(matchesWithMessages);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load messages');
     } finally {
       setLoading(false);

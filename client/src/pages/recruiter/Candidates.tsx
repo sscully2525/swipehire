@@ -35,7 +35,7 @@ function Candidates() {
     try {
       const response = await api.get('/recruiter/candidates');
       setCandidates(response.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load candidates');
     } finally {
       setLoading(false);
@@ -54,7 +54,7 @@ function Candidates() {
       });
       toast.success('It\'s a match! 🎉');
       setCurrentIndex(prev => prev + 1);
-    } catch (err) {
+    } catch {
       toast.error('Failed to like candidate');
     } finally {
       setActionLoading(false);
@@ -72,7 +72,7 @@ function Candidates() {
         jobId: candidate.job_id
       });
       setCurrentIndex(prev => prev + 1);
-    } catch (err) {
+    } catch {
       toast.error('Failed to pass on candidate');
     } finally {
       setActionLoading(false);

@@ -63,7 +63,7 @@ function Onboarding() {
       updateUser({ onboardingCompleted: true });
       toast.success('Welcome to SwipeHire!');
       window.location.href = '/swipe';
-    } catch (err) {
+    } catch {
       toast.error('Failed to complete onboarding');
     } finally {
       setIsLoading(false);

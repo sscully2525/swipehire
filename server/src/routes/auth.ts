@@ -57,10 +57,10 @@ const handleValidationErrors = (req: Request, res: Response, next: NextFunction)
 };
 
 router.post('/signup', [
-  body('email').isEmail().normalizeEmail(),
-  body('password').isString().isLength({ min: 10, max: 256 }),
-  body('firstName').trim().isLength({ min: 1 }),
-  body('lastName').trim().isLength({ min: 1 }),
+  body('email').isEmail().withMessage('Enter a valid email address').normalizeEmail(),
+  body('password').isString().isLength({ min: 10, max: 256 }).withMessage('Password must be at least 10 characters'),
+  body('firstName').trim().isLength({ min: 1 }).withMessage('First name is required'),
+  body('lastName').trim().isLength({ min: 1 }).withMessage('Last name is required'),
   handleValidationErrors
 ], async (req: Request, res: Response) => {
   try {
@@ -191,11 +191,11 @@ router.post('/logout', async (req, res) => {
 
 // Recruiter/Company Registration
 router.post('/recruiter/signup', [
-  body('email').isEmail().normalizeEmail(),
-  body('password').isString().isLength({ min: 10, max: 256 }),
-  body('firstName').trim().isLength({ min: 1 }),
-  body('lastName').trim().isLength({ min: 1 }),
-  body('companyName').trim().isLength({ min: 1 }),
+  body('email').isEmail().withMessage('Enter a valid email address').normalizeEmail(),
+  body('password').isString().isLength({ min: 10, max: 256 }).withMessage('Password must be at least 10 characters'),
+  body('firstName').trim().isLength({ min: 1 }).withMessage('First name is required'),
+  body('lastName').trim().isLength({ min: 1 }).withMessage('Last name is required'),
+  body('companyName').trim().isLength({ min: 1 }).withMessage('Company name is required'),
   handleValidationErrors
 ], async (req: Request, res: Response) => {
   try {

@@ -94,6 +94,7 @@ export const initSocketHandlers = (io: Server) => {
         const senderType = isCandidate ? 'company' : 'candidate';
         await markMessagesAsRead(matchId, senderType);
       } catch (err) {
+        console.error('[socket] join_match error', { userId: socket.userId, matchId, err });
         socket.emit('error', { message: 'Failed to join match' });
       }
     });
@@ -159,6 +160,7 @@ export const initSocketHandlers = (io: Server) => {
           io.to(`user:${match.user_id}`).emit('notification', notif);
         }
       } catch (err) {
+        console.error('[socket] send_message error', { userId: socket.userId, err });
         socket.emit('error', { message: 'Failed to send message' });
       }
     });

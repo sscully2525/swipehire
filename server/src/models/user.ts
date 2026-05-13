@@ -166,12 +166,37 @@ export const verifyRefreshToken = (token: string): any => {
  * Verifies the refresh token signature/expiry AND enforces rotation by
  * comparing the presented token against the one stored in Redis. Reject
  * if mismatch (re-use of an old refresh token).
+ *
+ * Fail-closed behaviour: if Redis is unreachable, we reject in production
+ * (we cannot safely rotate tokens without it) but allow the rotation in
+ * dev/test with a warning, so local development isn't blocked by a
+ * missing Redis container.
  */
 export const verifyAndConsumeRefreshToken = async (
   token: string
 ): Promise<{ userId: string }> => {
   const decoded = verifyRefreshToken(token);
-  const stored = await redis.get(`refresh:${decoded.userId}`);
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (!redis.isReady) {
+    if (isProduction) {
+      // Fail closed — we can't enforce rotation, so don't issue new tokens.
+      throw new Error('Auth temporarily unavailable (refresh token store offline)');
+    }
+    // Dev/test: log and proceed. Surfaced clearly so it's not silent.
+    console.warn('[auth] Redis unavailable — skipping refresh-token rotation check (dev only)');
+    return { userId: decoded.userId };
+  }
+
+  let stored: string | null;
+  try {
+    stored = await redis.get(`refresh:${decoded.userId}`);
+  } catch (err) {
+    if (isProduction) throw new Error('Auth temporarily unavailable');
+    console.warn('[auth] Redis get failed — skipping rotation check (dev only)', err);
+    return { userId: decoded.userId };
+  }
+
   if (!stored || stored !== token) {
     throw new Error('Refresh token revoked or rotated');
   }

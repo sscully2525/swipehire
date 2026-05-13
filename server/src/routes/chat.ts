@@ -82,14 +82,27 @@ router.post('/:matchId/messages', authenticate, [
 router.get('/:matchId/messages', authenticate, async (req: Request, res: Response) => {
   try {
     const { match, senderType } = await resolveMatchAccess(req.params.matchId, req.userId!);
+
+    // If a match has been closed/unmatched, surface that to the client so
+    // it can show "Conversation ended" rather than a blank chat. Still
+    // return historical messages — they shouldn't disappear retroactively.
+    const matchClosed = match.status === 'unmatched' || match.status === 'closed';
+
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
     const messages = await getMessagesByMatch(req.params.matchId, limit, offset);
 
-    // Mark the other side's messages as read
-    const otherSide = senderType === 'candidate' ? 'company' : 'candidate';
-    await markMessagesAsRead(req.params.matchId, otherSide);
+    // Only mark as read for ACTIVE matches. We don't want to silently
+    // mark history as read on an unmatched conversation.
+    if (!matchClosed) {
+      const otherSide = senderType === 'candidate' ? 'company' : 'candidate';
+      await markMessagesAsRead(req.params.matchId, otherSide);
+    }
 
+    // Preserve backwards compatibility (existing clients expect an array)
+    // while still surfacing match status via response headers.
+    res.setHeader('X-Match-Status', match.status || 'active');
+    if (matchClosed) res.setHeader('X-Match-Closed', '1');
     res.json(messages);
   } catch (err: any) {
     if (err.status === 404) return res.status(404).json({ error: err.message });

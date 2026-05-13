@@ -2,12 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
+import pinoHttp from 'pino-http';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { createClient } from 'redis';
-import winston from 'winston';
 import path from 'path';
 
 import authRoutes from './routes/auth';
@@ -27,7 +25,20 @@ import setupRoutes from './routes/setup';
 import notificationRoutes from './routes/notifications';
 import verificationRoutes from './routes/verification';
 import locationRoutes from './routes/location';
+import healthRoutes from './routes/health';
 import { initSocketHandlers } from './socket/handlers';
+import { logger, redactRedisUrl } from './logger';
+import { redis, initRedis } from './redis';
+import { requestId } from './middleware/requestId';
+import {
+  globalLimiter,
+  loginLimiter,
+  registerLimiter,
+  refreshLimiter,
+  paymentLimiter,
+  swipeLimiter,
+  messageLimiter,
+} from './middleware/rateLimit';
 
 dotenv.config();
 
@@ -46,43 +57,31 @@ if (isProduction) {
   const jwtSecret = process.env.JWT_SECRET;
   const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
   if (!jwtSecret || jwtSecret.length < 32 || placeholders.includes(jwtSecret)) {
-    
-    console.error('FATAL: JWT_SECRET must be set to a strong random value (>= 32 chars) in production.');
+    logger.fatal('JWT_SECRET must be set to a strong random value (>= 32 chars) in production.');
     process.exit(1);
   }
   if (!jwtRefreshSecret || jwtRefreshSecret.length < 32 || placeholders.includes(jwtRefreshSecret)) {
-    
-    console.error('FATAL: JWT_REFRESH_SECRET must be set to a strong random value (>= 32 chars) in production.');
+    logger.fatal('JWT_REFRESH_SECRET must be set to a strong random value (>= 32 chars) in production.');
     process.exit(1);
   }
   if (!process.env.CLIENT_URL) {
-    
-    console.error('FATAL: CLIENT_URL must be set in production (used for CORS).');
+    logger.fatal('CLIENT_URL must be set in production (used for CORS).');
     process.exit(1);
   }
 }
 
-// Logger
-export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' })
-  ]
-});
+// Boot log: which Redis URL we're attempting (redacted), so prod ops can
+// confirm Railway env vars are wired through.
+logger.info(
+  { redisUrl: redactRedisUrl(process.env.REDIS_URL), nodeEnv: process.env.NODE_ENV || 'development' },
+  '🚀 SwipeHire server bootstrap',
+);
 
-// Redis client
-export const redis = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-});
+// Initialize Redis (background; HTTP server still binds even if Redis is slow)
+initRedis();
 
-redis.on('error', (err) => logger.error('Redis Client Error', err));
-redis.connect();
+// Re-export for legacy imports (`import { redis, logger } from './index'`).
+export { redis, logger };
 
 const app = express();
 
@@ -107,27 +106,40 @@ const io = new Server(httpServer, {
 
 // Security middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: false,
 }));
 app.use(compression());
 
 app.use(cors({ origin: corsOrigins, credentials: true }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests from this IP'
-});
-app.use(limiter);
+// Request-scoped ID + structured logging.
+// Must run early so every downstream log line gets a requestId.
+app.use(requestId);
+app.use(
+  // The @types for pino-http v11 expect Node IncomingMessage rather than
+  // Express Request, which collides with Express's RequestHandler shape.
+  // Behaviour is correct at runtime; cast at the use-site.
+  pinoHttp({
+    logger: logger._pino,
+    genReqId: (req) => (req as { id?: string }).id || 'unknown',
+    customLogLevel: (_req, res, err) => {
+      if (err || res.statusCode >= 500) return 'error';
+      if (res.statusCode >= 400) return 'warn';
+      return 'info';
+    },
+    customProps: (req) => ({ requestId: (req as { id?: string }).id }),
+    serializers: {
+      req: (req: unknown) => {
+        const r = req as { method?: string; url?: string; remoteAddress?: string };
+        return { method: r.method, url: r.url, remoteAddress: r.remoteAddress };
+      },
+    },
+  }) as unknown as express.RequestHandler,
+);
 
-// Stricter rate limit for auth
-const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
-  message: 'Too many auth attempts'
-});
+// Global rate limit (applies to all routes; per-route limiters below add stricter caps)
+app.use(globalLimiter);
 
 // Stripe webhook needs the raw request bytes for signature verification.
 // This MUST be registered before express.json() / express.urlencoded(),
@@ -138,44 +150,35 @@ app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// Request logging
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get('user-agent')
-  });
-  next();
-});
+// Health/liveness/readiness — mounted before per-route limiters so probes always answer.
+app.use('/api/health', healthRoutes);
 
-// Routes
-app.use('/api/auth', authLimiter, authRoutes);
+// Auth: granular limits per endpoint.
+// (auth router internally maps these to /login, /signup, etc.)
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/recruiter/signup', registerLimiter);
+app.use('/api/auth/signup', registerLimiter);
+app.use('/api/auth/refresh', refreshLimiter);
+
+app.use('/api/auth', authRoutes);
 app.use('/api/startups', startupRoutes);
-app.use('/api/swipes', swipeRoutes);
+app.use('/api/swipes', swipeLimiter, swipeRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/profile-enhanced', profileEnhancedRoutes);
-app.use('/api/chat', chatRoutes);
+app.use('/api/chat', messageLimiter, chatRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/payments', paymentRoutes);
+app.use('/api/payments', paymentLimiter, paymentRoutes);
 app.use('/api/ai', aiRoutes);
+// Stripe webhooks bypass rate limit (Stripe needs to retry freely); other Stripe
+// routes are limited via paymentLimiter equivalent. Keep webhook untouched.
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/recruiter', recruiterRoutes);
 app.use('/api/setup', setupRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/verify', verificationRoutes);
 app.use('/api/location', locationRoutes);
-
-// Health check
-app.get('/api/health', async (req, res) => {
-  const redisHealth = redis.isReady ? 'connected' : 'disconnected';
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    redis: redisHealth,
-    version: '2.0.0'
-  });
-});
 
 // Serve React app in production (must come after all API routes)
 if (process.env.NODE_ENV === 'production') {
@@ -195,10 +198,25 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Error handling
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error('Unhandled error', { error: err.message, stack: err.stack });
-  res.status(500).json({ error: 'Internal server error' });
+// Central error handler — logs with requestId + path + (optional) user, returns
+// a safe payload with the requestId so support can correlate.
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const reqId = (req as any).id;
+  const userId = (req as any).userId;
+  logger.error(
+    {
+      err: { message: err?.message, stack: err?.stack },
+      requestId: reqId,
+      userId,
+      path: req.path,
+      method: req.method,
+    },
+    'Unhandled error',
+  );
+  res.status(err?.status || 500).json({
+    error: isProduction ? 'Internal server error' : err?.message || 'Internal server error',
+    requestId: reqId,
+  });
 });
 
 // Socket.io handlers
@@ -237,13 +255,96 @@ const setupDatabase = async () => {
       }
     }
   } catch (err) {
-    logger.error('❌ Database setup failed:', err);
+    logger.error({ err }, '❌ Database setup failed');
   }
 };
 
 httpServer.listen(PORT, () => {
-  logger.info(`🚀 SwipeHire server v2.0 running on port ${PORT}`);
+  logger.info({ port: PORT }, `🚀 SwipeHire server v2.1 running`);
   setupDatabase();
+});
+
+/**
+ * Graceful shutdown:
+ *   1. Stop accepting new HTTP connections.
+ *   2. Wait up to 30s for in-flight requests to finish.
+ *   3. Notify socket.io clients + close their connections.
+ *   4. Close Redis + pg pool.
+ *   5. exit(0).
+ *
+ * Crucial for zero-downtime Railway redeploys: Railway sends SIGTERM and
+ * gives us a grace period before SIGKILL.
+ */
+let shuttingDown = false;
+const SHUTDOWN_TIMEOUT_MS = 30_000;
+
+const shutdown = async (signal: string) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.warn({ signal }, 'Graceful shutdown initiated');
+
+  const forceExit = setTimeout(() => {
+    logger.error('Shutdown timeout hit — forcing exit');
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS).unref();
+
+  try {
+    // 1. Stop HTTP listener
+    await new Promise<void>((resolve) => {
+      httpServer.close((err) => {
+        if (err) logger.error({ err: err.message }, 'HTTP server close error');
+        resolve();
+      });
+    });
+    logger.info('HTTP server stopped accepting connections');
+
+    // 2. Tell socket clients to reconnect, then close sockets.
+    try {
+      io.emit('server_shutdown', { message: 'Server restarting, please reconnect.' });
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, 'Failed to broadcast shutdown event');
+    }
+    await new Promise<void>((resolve) => io.close(() => resolve()));
+    logger.info('Socket.io connections closed');
+
+    // 3. Close Redis
+    try {
+      if (redis.isOpen) await redis.quit();
+      logger.info('Redis client closed');
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, 'Redis quit error');
+    }
+
+    // 4. Close pg pool
+    try {
+      const { default: pgPool } = await import('./db');
+      await pgPool.end();
+      logger.info('Postgres pool closed');
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, 'Postgres pool close error');
+    }
+
+    clearTimeout(forceExit);
+    logger.info('Goodbye 👋');
+    process.exit(0);
+  } catch (err: any) {
+    logger.error({ err: err?.message }, 'Shutdown error');
+    process.exit(1);
+  }
+};
+
+['SIGTERM', 'SIGINT'].forEach((sig) => {
+  process.on(sig, () => void shutdown(sig));
+});
+
+// Catch unhandled rejections and uncaught exceptions: log + exit so the
+// orchestrator restarts us cleanly rather than entering an undefined state.
+process.on('unhandledRejection', (reason) => {
+  logger.error({ reason }, 'Unhandled rejection');
+});
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err: err.message, stack: err.stack }, 'Uncaught exception — exiting');
+  void shutdown('uncaughtException');
 });
 
 export { io };

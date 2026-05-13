@@ -14,6 +14,7 @@ import {
 } from '../models/user';
 import { query } from '../db';
 import { logger } from '../index';
+import { validatePassword } from '../utils/password';
 
 const router = Router();
 
@@ -28,14 +29,24 @@ const handleValidationErrors = (req: Request, res: Response, next: NextFunction)
 
 router.post('/signup', [
   body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('password').isString().isLength({ min: 10, max: 256 }),
   body('firstName').trim().isLength({ min: 1 }),
   body('lastName').trim().isLength({ min: 1 }),
   handleValidationErrors
 ], async (req: Request, res: Response) => {
   try {
     const { email, password, firstName, lastName } = req.body;
-    
+
+    // Strong-password policy (rule-based + zxcvbn score)
+    const pw = validatePassword(password, { email, firstName, lastName });
+    if (!pw.valid) {
+      return res.status(400).json({
+        error: pw.errors[0],
+        errors: pw.errors,
+        passwordFeedback: pw.feedback,
+      });
+    }
+
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
       return res.status(409).json({ error: 'Email already registered' });
@@ -152,7 +163,7 @@ router.post('/logout', async (req, res) => {
 // Recruiter/Company Registration
 router.post('/recruiter/signup', [
   body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 8 }),
+  body('password').isString().isLength({ min: 10, max: 256 }),
   body('firstName').trim().isLength({ min: 1 }),
   body('lastName').trim().isLength({ min: 1 }),
   body('companyName').trim().isLength({ min: 1 }),
@@ -160,7 +171,16 @@ router.post('/recruiter/signup', [
 ], async (req: Request, res: Response) => {
   try {
     const { email, password, firstName, lastName, companyName } = req.body;
-    
+
+    const pw = validatePassword(password, { email, firstName, lastName });
+    if (!pw.valid) {
+      return res.status(400).json({
+        error: pw.errors[0],
+        errors: pw.errors,
+        passwordFeedback: pw.feedback,
+      });
+    }
+
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
       return res.status(409).json({ error: 'Email already registered' });
@@ -301,6 +321,154 @@ router.get('/linkedin/callback', async (req: Request, res: Response) => {
   } catch (error) {
     logger.error('LinkedIn callback error', { error });
     res.redirect(`${clientUrl}/login?error=linkedin_failed`);
+  }
+});
+
+// Password strength check — front-end calls this for real-time feedback so
+// it shares the exact same rules as the server. Doesn't reveal whether an
+// email is taken; that's a different endpoint.
+router.post('/password/check', [body('password').isString()], async (req: Request, res: Response) => {
+  const { password, email, firstName, lastName } = req.body as Record<string, string>;
+  const result = validatePassword(password || '', { email, firstName, lastName });
+  res.json({
+    valid: result.valid,
+    score: result.score ?? 0,
+    errors: result.errors,
+    feedback: result.feedback ?? [],
+  });
+});
+
+// Change password (authenticated). Requires the current password.
+router.post('/password/change', [
+  body('currentPassword').isString(),
+  body('newPassword').isString().isLength({ min: 10, max: 256 }),
+  handleValidationErrors,
+], async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'No token provided' });
+    const token = authHeader.split(' ')[1];
+    const decoded = verifyAccessToken(token);
+
+    const result = await query('SELECT id, email, first_name, last_name, password_hash FROM users WHERE id = $1', [decoded.userId]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const { verifyPassword } = await import('../models/user');
+    const ok = await verifyPassword(req.body.currentPassword, user.password_hash);
+    if (!ok) return res.status(403).json({ error: 'Current password is incorrect' });
+
+    const pw = validatePassword(req.body.newPassword, {
+      email: user.email,
+      firstName: user.first_name,
+      lastName: user.last_name,
+    });
+    if (!pw.valid) {
+      return res.status(400).json({ error: pw.errors[0], errors: pw.errors, passwordFeedback: pw.feedback });
+    }
+
+    const bcrypt = await import('bcryptjs');
+    const newHash = await bcrypt.hash(req.body.newPassword, 12);
+    await query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newHash, user.id]);
+    // Invalidate any active refresh token so other sessions must re-auth.
+    try {
+      const { invalidateRefreshToken } = await import('../models/user');
+      await invalidateRefreshToken(user.id);
+    } catch {
+      /* best-effort */
+    }
+    logger.info('Password changed', { userId: user.id });
+    res.json({ message: 'Password updated. Please sign in again.' });
+  } catch (err: any) {
+    logger.error('Password change error', { err: err?.message });
+    res.status(401).json({ error: 'Failed to change password' });
+  }
+});
+
+// Password reset — request a one-time code (email delivery left to existing
+// verification transport). The endpoint always returns 200 to avoid
+// revealing whether the email is registered.
+router.post('/password/reset/request', [
+  body('email').isEmail().normalizeEmail(),
+  handleValidationErrors,
+], async (req: Request, res: Response) => {
+  try {
+    const user = await findUserByEmail(req.body.email);
+    if (user) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const codeHash = await (await import('bcryptjs')).hash(code, 8);
+      await query(
+        `INSERT INTO verification_codes (user_id, code_hash, purpose, expires_at)
+         VALUES ($1, $2, 'password_reset', NOW() + INTERVAL '15 minutes')
+         ON CONFLICT DO NOTHING`,
+        [user.id, codeHash],
+      ).catch(() => {
+        // Table may not exist in all environments; reset is best-effort here.
+        logger.warn('verification_codes table missing; reset request not stored');
+      });
+      logger.info('Password reset requested', { userId: user.id });
+      // Email transport is wired through routes/verification; this MVP just logs
+      // the code in dev so testers can use it. In prod, hook into the same
+      // email transport used elsewhere.
+      if (process.env.NODE_ENV !== 'production') {
+        logger.warn({ userId: user.id, code }, '[DEV ONLY] password reset code');
+      }
+    }
+    res.json({ message: 'If that email is registered, a reset code has been sent.' });
+  } catch (err: any) {
+    logger.error('Password reset request error', { err: err?.message });
+    res.json({ message: 'If that email is registered, a reset code has been sent.' });
+  }
+});
+
+// Confirm reset: { email, code, newPassword }
+router.post('/password/reset/confirm', [
+  body('email').isEmail().normalizeEmail(),
+  body('code').isString().isLength({ min: 4, max: 12 }),
+  body('newPassword').isString().isLength({ min: 10, max: 256 }),
+  handleValidationErrors,
+], async (req: Request, res: Response) => {
+  try {
+    const user = await findUserByEmail(req.body.email);
+    if (!user) return res.status(400).json({ error: 'Invalid code or email' });
+
+    const codeRows = await query(
+      `SELECT id, code_hash FROM verification_codes
+       WHERE user_id = $1 AND purpose = 'password_reset' AND expires_at > NOW()
+       ORDER BY created_at DESC LIMIT 5`,
+      [user.id],
+    ).catch(() => ({ rows: [] as any[] }));
+
+    const bcrypt = await import('bcryptjs');
+    let matched: any = null;
+    for (const row of codeRows.rows) {
+      if (await bcrypt.compare(req.body.code, row.code_hash)) { matched = row; break; }
+    }
+    if (!matched) return res.status(400).json({ error: 'Invalid code or email' });
+
+    const pw = validatePassword(req.body.newPassword, {
+      email: user.email,
+      firstName: user.first_name,
+      lastName: user.last_name,
+    });
+    if (!pw.valid) {
+      return res.status(400).json({ error: pw.errors[0], errors: pw.errors, passwordFeedback: pw.feedback });
+    }
+
+    const newHash = await bcrypt.hash(req.body.newPassword, 12);
+    await query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newHash, user.id]);
+    await query('DELETE FROM verification_codes WHERE id = $1', [matched.id]).catch(() => {});
+    try {
+      const { invalidateRefreshToken } = await import('../models/user');
+      await invalidateRefreshToken(user.id);
+    } catch {
+      /* best-effort */
+    }
+    logger.info('Password reset', { userId: user.id });
+    res.json({ message: 'Password updated. Please sign in.' });
+  } catch (err: any) {
+    logger.error('Password reset confirm error', { err: err?.message });
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 

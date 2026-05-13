@@ -1,33 +1,16 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { body } from 'express-validator';
-import { 
-  createSwipe, 
-  checkForMatch, 
-  createMatch, 
+import { Router, Request, Response } from 'express';
+import {
+  createSwipe,
+  checkForMatch,
+  createMatch,
   getRemainingSwipes,
-  getSwipeStats
+  getSwipeStats,
 } from '../models/swipe';
 import { findUserById, getSwipeLimit } from '../models/user';
 import { calculateMatchScore } from '../services/ai';
-import { verifyAccessToken } from '../models/user';
-import { redis } from '../index';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
-
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  
-  try {
-    const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 router.post('/', authenticate, async (req: Request, res: Response) => {
   try {
@@ -83,8 +66,8 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
       remainingSwipes: newRemaining,
       stats
     });
-  } catch (error) {
-    console.error('Swipe error:', error);
+  } catch (err) {
+    console.error('Swipe error:', err);
     res.status(500).json({ error: 'Failed to record swipe' });
   }
 });
@@ -114,7 +97,7 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
   try {
     const stats = await getSwipeStats(req.userId!);
     res.json(stats);
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to get swipe stats' });
   }
 });

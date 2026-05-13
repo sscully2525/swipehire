@@ -52,6 +52,7 @@ function Profile() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddSection, setShowAddSection] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [openToWork, setOpenToWork] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -62,10 +63,23 @@ function Profile() {
       const response = await api.get('/profile-enhanced/full');
       setProfile(response.data);
       setEditForm(response.data.user || {});
+      setOpenToWork(response.data.user?.open_to_work || false);
     } catch (err) {
       toast.error('Failed to load profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleOpenToWork = async () => {
+    const next = !openToWork;
+    setOpenToWork(next);
+    try {
+      await api.put('/profile-enhanced/basic', { open_to_work: next });
+      toast.success(next ? 'Open to work enabled' : 'Open to work disabled');
+    } catch {
+      setOpenToWork(!next);
+      toast.error('Failed to update open to work status');
     }
   };
 
@@ -139,9 +153,10 @@ function Profile() {
       >
         {/* Cover Image */}
         <div className="h-48 bg-gradient-to-r from-[#0A66C2] to-[#0077B5] relative">
-          <button 
-            onClick={() => toast.success('Cover photo upload coming soon')}
+          <button
+            onClick={() => { setEditForm(userData || {}); setShowEditModal(true); }}
             className="absolute top-4 right-4 p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
+            title="Edit cover image URL"
           >
             <Camera className="w-5 h-5 text-white" />
           </button>
@@ -162,9 +177,10 @@ function Profile() {
                   )}
                 </div>
               </div>
-              <button 
-                onClick={() => toast.success('Profile photo upload coming soon')}
+              <button
+                onClick={() => { setEditForm(userData || {}); setShowEditModal(true); }}
                 className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-md hover:bg-gray-50"
+                title="Edit avatar URL"
               >
                 <Camera className="w-4 h-4 text-gray-600" />
               </button>
@@ -191,8 +207,8 @@ function Profile() {
                 <MapPin className="w-4 h-4 mr-1" />
                 {userData?.location || 'Add location'}
               </span>
-              <button 
-                onClick={() => toast.success('Contact info editing coming soon')}
+              <button
+                onClick={() => { setEditForm(userData || {}); setShowEditModal(true); }}
                 className="text-[#0A66C2] font-medium hover:underline"
               >
                 Contact info
@@ -208,23 +224,17 @@ function Profile() {
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-3 mt-4">
-            <button 
-              onClick={() => toast.success('Open to work feature coming soon')}
-              className="btn-primary"
+            <button
+              onClick={handleToggleOpenToWork}
+              className={openToWork ? 'btn-primary' : 'btn-secondary'}
             >
-              Open to
+              {openToWork ? '✓ Open to Work' : 'Open to Work'}
             </button>
-            <button 
+            <button
               onClick={() => setShowAddSection('menu')}
               className="btn-secondary"
             >
               Add profile section
-            </button>
-            <button 
-              onClick={() => toast.success('More options coming soon')}
-              className="btn-ghost"
-            >
-              More
             </button>
           </div>
         </div>
@@ -416,16 +426,17 @@ function Profile() {
           >
             <h3 className="font-semibold text-[#191919] mb-3">Analytics</h3>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-[#666666]">Profile views</span>
-              <span className="text-lg font-bold text-[#0A66C2]">{userData?.profile_views || 0}</span>
+              <span className="text-sm font-medium text-[#666666]">Matches</span>
+              <span className="text-lg font-bold text-[#0A66C2]">{profile?.user?.match_count || 0}</span>
+            </div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-[#666666]">Right swipes</span>
+              <span className="text-lg font-bold text-[#0A66C2]">{profile?.user?.right_swipe_count || 0}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-[#666666]">Post impressions</span>
-              <span className="text-lg font-bold text-[#0A66C2]">{userData?.post_impressions || 0}</span>
+              <span className="text-sm font-medium text-[#666666]">Skills listed</span>
+              <span className="text-lg font-bold text-[#0A66C2]">{(userData?.skills || []).length}</span>
             </div>
-            <p className="text-xs text-[#8C8C8C] mt-3">
-              These stats are currently placeholders. Full analytics coming soon!
-            </p>
           </motion.div>
 
           {/* Links Card */}
@@ -610,6 +621,26 @@ function Profile() {
                     type="url"
                     value={editForm.portfolio_url || ''}
                     onChange={(e) => setEditForm({...editForm, portfolio_url: e.target.value})}
+                    className="input-field"
+                    placeholder="https://..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#666666] mb-1">Resume URL</label>
+                  <input
+                    type="url"
+                    value={editForm.resume_url || ''}
+                    onChange={(e) => setEditForm({...editForm, resume_url: e.target.value})}
+                    className="input-field"
+                    placeholder="https://..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#666666] mb-1">Avatar URL</label>
+                  <input
+                    type="url"
+                    value={editForm.avatar_url || ''}
+                    onChange={(e) => setEditForm({...editForm, avatar_url: e.target.value})}
                     className="input-field"
                     placeholder="https://..."
                   />

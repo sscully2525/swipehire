@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 
 interface FilterPanelProps {
   filters: {
@@ -27,8 +28,8 @@ function FilterPanel({ filters, onChange, onClose }: FilterPanelProps) {
     try {
       const response = await api.get('/startups/filters');
       setOptions(response.data);
-    } catch (err) {
-      console.error('Failed to fetch filter options');
+    } catch {
+      toast.error('Failed to load filter options');
     }
   };
 

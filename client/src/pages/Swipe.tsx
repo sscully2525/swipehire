@@ -71,8 +71,8 @@ function Swipe() {
     try {
       const response = await api.get('/swipes/remaining');
       setSwipeInfo(response.data.remainingSwipes, response.data.dailyLimit);
-    } catch (err) {
-      console.error('Failed to fetch swipe info');
+    } catch {
+      // Non-critical — swipe limit defaults will apply
     }
   };
 

@@ -1,6 +1,5 @@
 import { query } from '../db';
 import { v4 as uuidv4 } from 'uuid';
-import { redis } from '../index';
 
 export interface Swipe {
   id: string;
@@ -42,16 +41,20 @@ export const createSwipe = async (
     [id, userId, jobId, direction, aiMatchScore]
   );
   
-  // Invalidate job cache for user
-  await redis.del(`jobs:${userId}:*`);
+  // No per-user job cache to invalidate here
   
   return result.rows[0];
 };
 
 export const checkForMatch = async (userId: string, jobId: string): Promise<boolean> => {
-  // For demo: 40% chance of match on right swipe
-  // In production, this would check if company has also expressed interest
-  return Math.random() < 0.4;
+  // A match exists when the company has already liked this candidate via recruiter route
+  // (company_interest_level set > 0 on an existing match record)
+  const result = await query(
+    `SELECT id FROM matches
+     WHERE user_id = $1 AND job_id = $2 AND company_interest_level IS NOT NULL`,
+    [userId, jobId]
+  );
+  return result.rows.length > 0;
 };
 
 export const createMatch = async (userId: string, jobId: string): Promise<Match> => {

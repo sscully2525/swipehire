@@ -90,8 +90,8 @@ function Matches() {
     try {
       const response = await api.get(`/matches/${matchId}/messages`);
       setMessages(response.data);
-    } catch (err) {
-      console.error('Failed to load messages');
+    } catch {
+      toast.error('Failed to load messages');
     }
   };
 

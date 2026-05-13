@@ -1,11 +1,38 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../db';
-import { createUser, findUserByEmail, generateTokens, storeRefreshToken } from '../models/user';
-import { createStartup, createJob } from '../models/startup';
+import { verifyAccessToken } from '../models/user';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
+
+const authenticate = (req: Request, res: Response, next: NextFunction) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+  try {
+    const decoded = verifyAccessToken(token);
+    req.userId = decoded.userId;
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  const result = await query('SELECT role FROM users WHERE id = $1', [req.userId]);
+  if (result.rows.length === 0 || result.rows[0].role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
+// Only available outside production
+const devOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  next();
+};
 
 // Sample companies data
 const SAMPLE_COMPANIES = [
@@ -25,7 +52,7 @@ const SAMPLE_COMPANIES = [
   { name: 'SmartCity', slug: 'smartcity', description: 'Urban planning and IoT solutions', mission: 'Building cities of tomorrow', stage: 'Series A', location: 'Phoenix, AZ', size: '20-50', website: 'https://smartcity.io' },
   { name: 'AgriTech', slug: 'agritech', description: 'Precision agriculture technology', mission: 'Feeding the world sustainably', stage: 'Seed', location: 'Des Moines, IA', size: '10-20', website: 'https://agritech.io' },
   { name: 'SpaceXplore', slug: 'spacexplore', description: 'Satellite data and space analytics', mission: 'Unlocking space data for Earth', stage: 'Series B', location: 'Houston, TX', size: '50-200', website: 'https://spacexplore.io' },
-  { name: 'BioGen', slug: 'biogen', description: 'Biotechnology research platform', mission: 'Accelerating life sciences', stage: 'Series C', location: 'San Diego, CA', size: '200-500', website: 'https://biogen.io' },
+  { name: 'BioGen', slug: 'biogen-tech', description: 'Biotechnology research platform', mission: 'Accelerating life sciences', stage: 'Series C', location: 'San Diego, CA', size: '200-500', website: 'https://biogen.io' },
   { name: 'LegalTech', slug: 'legaltech', description: 'AI-powered legal document analysis', mission: 'Democratizing legal services', stage: 'Series A', location: 'Washington, DC', size: '20-50', website: 'https://legaltech.io' },
   { name: 'GameStudio', slug: 'gamestudio', description: 'Indie game development platform', mission: 'Creating worlds of wonder', stage: 'Seed', location: 'Austin, TX', size: '10-20', website: 'https://gamestudio.io' },
   { name: 'MusicAI', slug: 'musicai', description: 'AI music composition and production', mission: 'Amplifying human creativity', stage: 'Series A', location: 'Nashville, TN', size: '20-50', website: 'https://musicai.io' },
@@ -83,31 +110,71 @@ const TECH_STACKS = [
   ['PHP', 'Laravel', 'Vue.js', 'MySQL']
 ];
 
-// Create admin account
-router.post('/setup-admin', async (req, res) => {
+async function seedCompanies(): Promise<number> {
+  let createdCount = 0;
+  for (const company of SAMPLE_COMPANIES) {
+    try {
+      const startupId = uuidv4();
+      await query(
+        `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (slug) DO NOTHING`,
+        [startupId, company.name, company.slug, company.description, company.mission,
+         company.stage, company.location, company.size, company.website,
+         true, Math.random() > 0.7, null]
+      );
+
+      // Only create jobs if the startup was actually inserted
+      const inserted = await query('SELECT id FROM startups WHERE slug = $1', [company.slug]);
+      if (inserted.rows.length === 0) continue;
+      const actualStartupId = inserted.rows[0].id;
+
+      const existingJobs = await query('SELECT COUNT(*) as count FROM jobs WHERE startup_id = $1', [actualStartupId]);
+      if (parseInt(existingJobs.rows[0].count) > 0) { createdCount++; continue; }
+
+      const numJobs = Math.floor(Math.random() * 3) + 1;
+      for (let i = 0; i < numJobs; i++) {
+        const jobId = uuidv4();
+        const title = JOB_TITLES[Math.floor(Math.random() * JOB_TITLES.length)];
+        const techStack = TECH_STACKS[Math.floor(Math.random() * TECH_STACKS.length)];
+        const salaryMin = 80000 + Math.floor(Math.random() * 50000);
+        const salaryMax = salaryMin + 40000 + Math.floor(Math.random() * 60000);
+        const equityMin = 0.001 + Math.random() * 0.009;
+        const equityMax = equityMin + 0.005 + Math.random() * 0.01;
+        await query(
+          `INSERT INTO jobs (id, startup_id, title, description, salary_min, salary_max, equity_min, equity_max, location, remote_allowed, tech_stack, experience_level, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')`,
+          [jobId, actualStartupId, title,
+           `Join ${company.name} as a ${title}. Work on cutting-edge technology in a fast-paced environment.`,
+           salaryMin, salaryMax, equityMin, equityMax, company.location,
+           Math.random() > 0.3,
+           techStack,
+           ['junior', 'mid', 'senior'][Math.floor(Math.random() * 3)]]
+        );
+      }
+      createdCount++;
+    } catch (err) {
+      console.log(`Skipped ${company.name}:`, (err as Error).message);
+    }
+  }
+  return createdCount;
+}
+
+// Create admin account — requires existing admin or dev-only
+router.post('/setup-admin', devOnly, async (req, res) => {
   try {
     const { email, password, firstName, lastName } = req.body;
-    
-    // Check if admin already exists
-    const existingAdmin = await query(
-      "SELECT * FROM users WHERE email = $1 AND role = 'admin'",
-      [email]
-    );
-    
+    const existingAdmin = await query("SELECT id FROM users WHERE email = $1 AND role = 'admin'", [email]);
     if (existingAdmin.rows.length > 0) {
       return res.status(409).json({ error: 'Admin already exists' });
     }
-    
-    // Create admin user
     const passwordHash = await bcrypt.hash(password, 12);
     const id = uuidv4();
-    
     await query(
       `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, onboarding_completed)
        VALUES ($1, $2, $3, $4, $5, 'admin', true, true)`,
       [id, email, passwordHash, firstName, lastName]
     );
-    
     res.json({ message: 'Admin created successfully', userId: id });
   } catch (error) {
     console.error('Setup admin error:', error);
@@ -115,272 +182,80 @@ router.post('/setup-admin', async (req, res) => {
   }
 });
 
-// Seed admin with demo company
-router.post('/seed-admin-company', async (req, res) => {
+// Seed admin with demo company — requires existing admin or dev-only
+router.post('/seed-admin-company', devOnly, async (req, res) => {
   try {
     const { adminEmail } = req.body;
-    
-    // Get admin user
-    const adminResult = await query(
-      "SELECT id FROM users WHERE email = $1 AND role = 'admin'",
-      [adminEmail]
-    );
-    
+    const adminResult = await query("SELECT id FROM users WHERE email = $1 AND role = 'admin'", [adminEmail]);
     if (adminResult.rows.length === 0) {
       return res.status(404).json({ error: 'Admin not found' });
     }
-    
     const adminId = adminResult.rows[0].id;
-    
-    // Create demo startup
     const startupId = uuidv4();
     await query(
       `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-      [
-        startupId,
-        'Grand Ventures',
-        'grand-ventures',
-        'A cutting-edge technology company building the future of AI-powered solutions.',
-        'Empowering businesses through intelligent automation',
-        'Series A',
-        'New York, NY',
-        '20-50',
-        'https://grandventures.io',
-        true,
-        true,
-        adminId
-      ]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       ON CONFLICT (slug) DO NOTHING`,
+      [startupId, 'Grand Ventures', 'grand-ventures',
+       'A cutting-edge technology company building the future of AI-powered solutions.',
+       'Empowering businesses through intelligent automation',
+       'Series A', 'New York, NY', '20-50', 'https://grandventures.io', true, true, adminId]
     );
-    
-    // Create demo jobs
+
+    const sv = await query('SELECT id FROM startups WHERE slug = $1', ['grand-ventures']);
+    const actualId = sv.rows[0]?.id;
+    if (!actualId) return res.status(500).json({ error: 'Startup insert failed' });
+
     const jobs = [
-      {
-        title: 'Senior Full Stack Engineer',
-        description: 'Lead our engineering team in building scalable AI solutions.',
-        salary_min: 180000,
-        salary_max: 250000,
-        equity_min: 0.005,
-        equity_max: 0.015,
-        location: 'New York, NY',
-        remote_allowed: true,
-        tech_stack: ['React', 'Node.js', 'Python', 'AWS', 'PostgreSQL'],
-        experience_level: 'senior'
-      },
-      {
-        title: 'Product Designer',
-        description: 'Design intuitive interfaces for our AI platform.',
-        salary_min: 130000,
-        salary_max: 180000,
-        equity_min: 0.003,
-        equity_max: 0.008,
-        location: 'New York, NY',
-        remote_allowed: true,
-        tech_stack: ['Figma', 'React', 'Design Systems'],
-        experience_level: 'senior'
-      },
-      {
-        title: 'Machine Learning Engineer',
-        description: 'Build and deploy ML models at scale.',
-        salary_min: 200000,
-        salary_max: 300000,
-        equity_min: 0.008,
-        equity_max: 0.02,
-        location: 'New York, NY',
-        remote_allowed: true,
-        tech_stack: ['Python', 'PyTorch', 'TensorFlow', 'AWS', 'Kubernetes'],
-        experience_level: 'senior'
-      }
+      { title: 'Senior Full Stack Engineer', description: 'Lead our engineering team in building scalable AI solutions.', salary_min: 180000, salary_max: 250000, equity_min: 0.005, equity_max: 0.015, tech_stack: ['React', 'Node.js', 'Python', 'AWS', 'PostgreSQL'], experience_level: 'senior' },
+      { title: 'Product Designer', description: 'Design intuitive interfaces for our AI platform.', salary_min: 130000, salary_max: 180000, equity_min: 0.003, equity_max: 0.008, tech_stack: ['Figma', 'React', 'Design Systems'], experience_level: 'senior' },
+      { title: 'Machine Learning Engineer', description: 'Build and deploy ML models at scale.', salary_min: 200000, salary_max: 300000, equity_min: 0.008, equity_max: 0.02, tech_stack: ['Python', 'PyTorch', 'TensorFlow', 'AWS', 'Kubernetes'], experience_level: 'senior' }
     ];
-    
     for (const job of jobs) {
-      const jobId = uuidv4();
       await query(
         `INSERT INTO jobs (id, startup_id, title, description, salary_min, salary_max, equity_min, equity_max, location, remote_allowed, tech_stack, experience_level, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')`,
-        [jobId, startupId, job.title, job.description, job.salary_min, job.salary_max, 
-         job.equity_min, job.equity_max, job.location, job.remote_allowed, job.tech_stack, job.experience_level]
+        [uuidv4(), actualId, job.title, job.description, job.salary_min, job.salary_max,
+         job.equity_min, job.equity_max, 'New York, NY', true, job.tech_stack, job.experience_level]
       );
     }
-    
-    res.json({ message: 'Admin company seeded successfully', startupId });
+    res.json({ message: 'Admin company seeded successfully', startupId: actualId });
   } catch (error) {
     console.error('Seed admin company error:', error);
     res.status(500).json({ error: 'Failed to seed admin company' });
   }
 });
 
-// Seed 50 sample companies - available to all users
+// Seed sample companies — idempotent, available to all users (read-only risk)
 router.get('/seed-sample-companies', async (req, res) => {
   try {
-    // Check if already seeded
     const existingCount = await query('SELECT COUNT(*) as count FROM startups');
     if (parseInt(existingCount.rows[0].count) > 1) {
       return res.json({ message: 'Sample companies already seeded', count: existingCount.rows[0].count });
     }
-
-    let createdCount = 0;
-    
-    for (const company of SAMPLE_COMPANIES) {
-      try {
-        const startupId = uuidv4();
-        await query(
-          `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-          [
-            startupId,
-            company.name,
-            company.slug,
-            company.description,
-            company.mission,
-            company.stage,
-            company.location,
-            company.size,
-            company.website,
-            true,
-            Math.random() > 0.7, // 30% featured
-            null
-          ]
-        );
-        
-        // Create 1-3 jobs for each company
-        const numJobs = Math.floor(Math.random() * 3) + 1;
-        for (let i = 0; i < numJobs; i++) {
-          const jobId = uuidv4();
-          const title = JOB_TITLES[Math.floor(Math.random() * JOB_TITLES.length)];
-          const techStack = TECH_STACKS[Math.floor(Math.random() * TECH_STACKS.length)];
-          const salaryMin = 80000 + Math.floor(Math.random() * 50000);
-          const salaryMax = salaryMin + 40000 + Math.floor(Math.random() * 60000);
-          const equityMin = 0.001 + Math.random() * 0.009;
-          const equityMax = equityMin + 0.005 + Math.random() * 0.01;
-          
-          await query(
-            `INSERT INTO jobs (id, startup_id, title, description, salary_min, salary_max, equity_min, equity_max, location, remote_allowed, tech_stack, experience_level, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')`,
-            [
-              jobId,
-              startupId,
-              title,
-              `Join ${company.name} as a ${title}. Work on cutting-edge technology in a fast-paced environment.`,
-              salaryMin,
-              salaryMax,
-              equityMin,
-              equityMax,
-              company.location,
-              Math.random() > 0.3, // 70% remote allowed
-              techStack,
-              ['junior', 'mid', 'senior'][Math.floor(Math.random() * 3)]
-            ]
-          );
-        }
-        
-        createdCount++;
-      } catch (err) {
-        console.log(`Skipped ${company.name}:`, (err as Error).message);
-      }
-    }
-    
-    res.json({ 
-      message: `Successfully created ${createdCount} sample companies with jobs`,
-      count: createdCount 
-    });
+    const createdCount = await seedCompanies();
+    res.json({ message: `Successfully created ${createdCount} sample companies with jobs`, count: createdCount });
   } catch (error) {
     console.error('Seed sample companies error:', error);
     res.status(500).json({ error: 'Failed to seed sample companies' });
   }
 });
 
-// Seed 50 sample companies - POST version
-router.post('/seed-sample-companies', async (req, res) => {
+// POST alias for seed — dev/admin only
+router.post('/seed-sample-companies', devOnly, authenticate, requireAdmin, async (req, res) => {
   try {
-    // Check if already seeded
-    const existingCount = await query('SELECT COUNT(*) as count FROM startups');
-    if (parseInt(existingCount.rows[0].count) > 1) {
-      return res.json({ message: 'Sample companies already seeded', count: existingCount.rows[0].count });
-    }
-
-    let createdCount = 0;
-    
-    for (const company of SAMPLE_COMPANIES) {
-      try {
-        const startupId = uuidv4();
-        await query(
-          `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-          [
-            startupId,
-            company.name,
-            company.slug,
-            company.description,
-            company.mission,
-            company.stage,
-            company.location,
-            company.size,
-            company.website,
-            true,
-            Math.random() > 0.7, // 30% featured
-            null
-          ]
-        );
-        
-        // Create 1-3 jobs for each company
-        const numJobs = Math.floor(Math.random() * 3) + 1;
-        for (let i = 0; i < numJobs; i++) {
-          const jobId = uuidv4();
-          const title = JOB_TITLES[Math.floor(Math.random() * JOB_TITLES.length)];
-          const techStack = TECH_STACKS[Math.floor(Math.random() * TECH_STACKS.length)];
-          const salaryMin = 80000 + Math.floor(Math.random() * 50000);
-          const salaryMax = salaryMin + 40000 + Math.floor(Math.random() * 60000);
-          const equityMin = 0.001 + Math.random() * 0.009;
-          const equityMax = equityMin + 0.005 + Math.random() * 0.01;
-          
-          await query(
-            `INSERT INTO jobs (id, startup_id, title, description, salary_min, salary_max, equity_min, equity_max, location, remote_allowed, tech_stack, experience_level, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')`,
-            [
-              jobId,
-              startupId,
-              title,
-              `Join ${company.name} as a ${title}. Work on cutting-edge technology in a fast-paced environment.`,
-              salaryMin,
-              salaryMax,
-              equityMin,
-              equityMax,
-              company.location,
-              Math.random() > 0.3, // 70% remote allowed
-              techStack,
-              ['junior', 'mid', 'senior'][Math.floor(Math.random() * 3)]
-            ]
-          );
-        }
-        
-        createdCount++;
-      } catch (err) {
-        console.log(`Skipped ${company.name}:`, (err as Error).message);
-      }
-    }
-    
-    res.json({ 
-      message: `Successfully created ${createdCount} sample companies with jobs`,
-      count: createdCount 
-    });
+    const createdCount = await seedCompanies();
+    res.json({ message: `Successfully created ${createdCount} sample companies with jobs`, count: createdCount });
   } catch (error) {
     console.error('Seed sample companies error:', error);
     res.status(500).json({ error: 'Failed to seed sample companies' });
   }
 });
 
-// Get admin dashboard stats
-router.get('/admin-stats', async (req, res) => {
+// Admin dashboard stats — admin only
+router.get('/admin-stats', authenticate, requireAdmin, async (req, res) => {
   try {
-    const [
-      usersResult,
-      swipesResult,
-      matchesResult,
-      startupsResult,
-      jobsResult,
-      messagesResult
-    ] = await Promise.all([
+    const [usersResult, swipesResult, matchesResult, startupsResult, jobsResult, messagesResult] = await Promise.all([
       query('SELECT COUNT(*) as count FROM users'),
       query('SELECT COUNT(*) as count FROM swipes'),
       query('SELECT COUNT(*) as count FROM matches'),
@@ -388,34 +263,19 @@ router.get('/admin-stats', async (req, res) => {
       query('SELECT COUNT(*) as count FROM jobs'),
       query('SELECT COUNT(*) as count FROM chat_messages')
     ]);
-    
-    // Get daily active users (last 7 days)
     const dauResult = await query(
       `SELECT DATE(last_active_at) as date, COUNT(*) as count
-       FROM users
-       WHERE last_active_at > CURRENT_DATE - INTERVAL '7 days'
-       GROUP BY DATE(last_active_at)
-       ORDER BY date`
+       FROM users WHERE last_active_at > CURRENT_DATE - INTERVAL '7 days'
+       GROUP BY DATE(last_active_at) ORDER BY date`
     );
-    
-    // Get recent signups
     const recentSignups = await query(
-      `SELECT id, email, first_name, last_name, created_at
-       FROM users
-       ORDER BY created_at DESC
-       LIMIT 10`
+      `SELECT id, email, first_name, last_name, created_at FROM users ORDER BY created_at DESC LIMIT 10`
     );
-    
-    // Get top startups by matches
     const topStartups = await query(
-      `SELECT s.name, COUNT(m.id) as match_count
-       FROM startups s
+      `SELECT s.name, COUNT(m.id) as match_count FROM startups s
        JOIN matches m ON s.id = m.startup_id
-       GROUP BY s.id, s.name
-       ORDER BY match_count DESC
-       LIMIT 10`
+       GROUP BY s.id, s.name ORDER BY match_count DESC LIMIT 10`
     );
-    
     res.json({
       stats: {
         totalUsers: parseInt(usersResult.rows[0].count),
@@ -435,12 +295,13 @@ router.get('/admin-stats', async (req, res) => {
   }
 });
 
-// Clear all swipes for a user (for testing)
-router.post('/clear-swipes', async (req, res) => {
+// Clear swipes — dev only (testing utility)
+router.post('/clear-swipes', devOnly, authenticate, async (req, res) => {
   try {
     const { userId } = req.body;
-    await query('DELETE FROM swipes WHERE user_id = $1', [userId]);
-    res.json({ message: 'All swipes cleared' });
+    const targetId = userId || req.userId;
+    await query('DELETE FROM swipes WHERE user_id = $1', [targetId]);
+    res.json({ message: 'Swipes cleared' });
   } catch (error) {
     console.error('Clear swipes error:', error);
     res.status(500).json({ error: 'Failed to clear swipes' });

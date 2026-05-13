@@ -46,8 +46,8 @@ function Notifications() {
         prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error('Failed to mark as read');
+    } catch {
+      toast.error('Failed to mark notification as read');
     }
   };
 
@@ -56,8 +56,8 @@ function Notifications() {
       await api.put('/notifications/read-all');
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
-    } catch (err) {
-      console.error('Failed to mark all as read');
+    } catch {
+      toast.error('Failed to mark all notifications as read');
     }
   };
 

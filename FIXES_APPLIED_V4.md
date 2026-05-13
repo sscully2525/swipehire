@@ -26,3 +26,4 @@
 - Client: lint ✅, build ✅, production-dependency audit 0 vulnerabilities ✅
 - Mobile: TypeScript check ✅
 - Production pre-deploy API smoke found location endpoint failures; migration plus Docker packaging fix included to apply the fix on deploy.
+- Production post-deploy hiring signup smoke returned 201 and recruiter dashboard returned 200; QA smoke account cleanup migration added.

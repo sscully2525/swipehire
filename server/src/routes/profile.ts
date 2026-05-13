@@ -73,7 +73,7 @@ router.post('/complete-onboarding', authenticate, async (req: Request, res: Resp
   try {
     const user = await updateUser(req.userId!, { onboarding_completed: true });
     res.json(user);
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to complete onboarding' });
   }
 });

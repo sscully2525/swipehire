@@ -102,7 +102,7 @@ router.post('/subscribe', authenticate, async (req: Request, res: Response) => {
       planId,
       stripeAvailable: !!process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('dummy')
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to initiate subscription' });
   }
 });

@@ -23,7 +23,7 @@ router.get('/match-score/:jobId', authenticate, async (req: Request, res: Respon
   try {
     const score = await calculateMatchScore(req.userId!, req.params.jobId);
     res.json({ score, jobId: req.params.jobId });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to calculate match score' });
   }
 });
@@ -33,7 +33,7 @@ router.get('/recommendations', authenticate, async (req: Request, res: Response)
     const limit = parseInt(req.query.limit as string) || 5;
     const recommendations = await getRecommendations(req.userId!, limit);
     res.json(recommendations);
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to get recommendations' });
   }
 });
@@ -43,7 +43,7 @@ router.post('/outreach-message', authenticate, async (req: Request, res: Respons
     const { jobId } = req.body;
     const message = await generateOutreachMessage(req.userId!, jobId);
     res.json({ message });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to generate message' });
   }
 });

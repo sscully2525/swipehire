@@ -3,11 +3,12 @@ import jwt from 'jsonwebtoken';
 import { createMessage, markMessagesAsRead, getMessagesByMatch } from '../models/chat';
 import { getMatchById } from '../models/swipe';
 import { updateLastActive } from '../models/user';
-import { createNotification } from '../models/notification';
 import { redis } from '../index';
 import { query } from '../db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+// Match the env-required pattern used by `models/user.ts` (production
+// bootstrap in `index.ts` refuses to start without a strong JWT_SECRET).
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret-do-not-use-in-prod';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -38,7 +39,7 @@ export const initSocketHandlers = (io: Server) => {
 
       await redis.setEx(`socket:${socket.userId}`, 3600, socket.id);
       next();
-    } catch (err) {
+    } catch {
       next(new Error('Invalid token'));
     }
   });
@@ -171,7 +172,7 @@ export const initSocketHandlers = (io: Server) => {
         const offset = (page - 1) * limit;
         const messages = await getMessagesByMatch(matchId, limit, offset);
         socket.emit('messages_loaded', { messages, page });
-      } catch (err) {
+      } catch {
         socket.emit('error', { message: 'Failed to load messages' });
       }
     });

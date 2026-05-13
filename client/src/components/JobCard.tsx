@@ -59,6 +59,7 @@ function JobCard({ job, onSwipe }: JobCardProps) {
 
   return (
     <motion.div
+      data-testid="job-card"
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0.7}

@@ -205,6 +205,7 @@ function Swipe() {
           <motion.button
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.92 }}
+            data-testid="swipe-left"
             onClick={() => handleSwipe('left')}
             className="w-14 h-14 rounded-2xl bg-white border-2 border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400 flex items-center justify-center shadow-md transition-colors"
             title="Pass (← Arrow)"
@@ -217,6 +218,7 @@ function Swipe() {
           <motion.button
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.92 }}
+            data-testid="swipe-right"
             onClick={() => handleSwipe('right')}
             className="w-14 h-14 rounded-2xl bg-white border-2 border-green-200 text-green-500 hover:bg-green-50 hover:border-green-400 flex items-center justify-center shadow-md transition-colors"
             title="Like (→ Arrow)"

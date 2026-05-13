@@ -159,6 +159,7 @@ function Signup() {
                 <label className="block text-sm font-medium text-gray-700">Company name</label>
                 <input
                   type="text"
+                  name="companyName"
                   required={accountType === 'recruiter'}
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
@@ -174,6 +175,7 @@ function Signup() {
               <label className="block text-sm font-medium text-gray-700">First name</label>
               <input
                 type="text"
+                name="firstName"
                 required
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -184,6 +186,7 @@ function Signup() {
               <label className="block text-sm font-medium text-gray-700">Last name</label>
               <input
                 type="text"
+                name="lastName"
                 required
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -196,6 +199,7 @@ function Signup() {
             <label className="block text-sm font-medium text-gray-700">Email address</label>
             <input
               type="email"
+              name="email"
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -208,6 +212,7 @@ function Signup() {
             <label className="block text-sm font-medium text-gray-700">Password</label>
             <input
               type="password"
+              name="password"
               required
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}

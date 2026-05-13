@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import api from '../lib/api';
@@ -29,14 +29,7 @@ function Notifications() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => {
-    fetchNotifications().then(() => {
-      // Auto-clear badge when page is opened
-      api.put('/notifications/read-all').catch(() => {});
-    });
-  }, []);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const [notifRes, countRes] = await Promise.all([
         api.get('/notifications'),
@@ -49,7 +42,16 @@ function Notifications() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setUnreadCount]);
+
+  useEffect(() => {
+    fetchNotifications().then(() => {
+      // Auto-clear badge when page is opened
+      api.put('/notifications/read-all').catch((err) => {
+        console.warn('Failed to mark notifications as read on open', err);
+      });
+    });
+  }, [fetchNotifications]);
 
   const markAsRead = async (id: string) => {
     try {

@@ -55,7 +55,7 @@ function AuthCallback() {
         toast.error('Failed to complete sign-in');
         navigate('/login');
       });
-  }, []);
+  }, [navigate, params, setAuth]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

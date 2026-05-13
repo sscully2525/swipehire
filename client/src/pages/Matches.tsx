@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -48,18 +48,6 @@ function Matches() {
   const { accessToken, user } = useAuthStore();
   const [searchParams] = useSearchParams();
 
-  useEffect(() => {
-    fetchMatches();
-  }, []);
-
-  // Open specific chat from URL param ?chat=matchId
-  useEffect(() => {
-    const chatId = searchParams.get('chat');
-    if (chatId && matches.length > 0) {
-      const match = matches.find((m) => m.id === chatId);
-      if (match) openChat(match);
-    }
-  }, [searchParams, matches]);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -90,14 +78,14 @@ function Matches() {
     });
 
     return () => { sock.close(); };
-  }, [accessToken]);
+  }, [accessToken, user?.id]);
 
   // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingUsers]);
 
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     try {
       const response = await api.get('/matches');
       setMatches(response.data);
@@ -106,9 +94,13 @@ function Matches() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const openChat = async (match: Match) => {
+  useEffect(() => {
+    fetchMatches();
+  }, [fetchMatches]);
+
+  const openChat = useCallback(async (match: Match) => {
     // Leave previous room
     if (selectedMatch && socket) {
       socket.emit('leave_match', selectedMatch.id);
@@ -130,7 +122,16 @@ function Matches() {
 
     // Clear unread count locally
     setMatches((prev) => prev.map((m) => (m.id === match.id ? { ...m, unread_count: 0 } : m)));
-  };
+  }, [selectedMatch, socket]);
+
+  // Open specific chat from URL param ?chat=matchId
+  useEffect(() => {
+    const chatId = searchParams.get('chat');
+    if (chatId && matches.length > 0) {
+      const match = matches.find((m) => m.id === chatId);
+      if (match) openChat(match);
+    }
+  }, [searchParams, matches, openChat]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedMatch || sending) return;

@@ -72,6 +72,7 @@ function RecruiterDashboard() {
       setCandidates(Array.isArray(candidatesRes.data) ? candidatesRes.data : []);
       setStats(dashboardRes.data);
     } catch (err) {
+      console.error('Failed to load recruiter dashboard', err);
       toast.error('Failed to load dashboard');
     } finally {
       setLoading(false);
@@ -85,6 +86,7 @@ function RecruiterDashboard() {
       setShowJobModal(false);
       fetchDashboardData();
     } catch (err) {
+      console.error('Failed to create recruiter job', err);
       toast.error('Failed to create job');
     }
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { io, Socket } from 'socket.io-client';
@@ -52,10 +52,6 @@ function RecruiterMatches() {
   const { accessToken, user } = useAuthStore();
 
   useEffect(() => {
-    fetchMatches();
-  }, []);
-
-  useEffect(() => {
     if (!accessToken) return;
     const sock = io('/', { auth: { token: accessToken }, transports: ['websocket'] });
     setSocket(sock);
@@ -84,13 +80,13 @@ function RecruiterMatches() {
     });
 
     return () => { sock.close(); };
-  }, [accessToken]);
+  }, [accessToken, user?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingUsers]);
 
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     try {
       const response = await api.get('/recruiter/matches');
       setMatches(response.data);
@@ -99,7 +95,11 @@ function RecruiterMatches() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchMatches();
+  }, [fetchMatches]);
 
   const openChat = async (match: RecruiterMatch) => {
     if (selectedMatch && socket) {

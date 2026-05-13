@@ -68,6 +68,7 @@ function Profile() {
       setEditForm(response.data.user || {});
       setOpenToWork(response.data.user?.open_to_work || false);
     } catch (err) {
+      console.error('Failed to load profile', err);
       toast.error('Failed to load profile');
     } finally {
       setLoading(false);
@@ -96,6 +97,7 @@ function Profile() {
         updateUser(editForm);
       }
     } catch (err) {
+      console.error('Failed to update profile', err);
       toast.error('Failed to update profile');
     }
   };
@@ -126,6 +128,7 @@ function Profile() {
       setShowAddSection(null);
       fetchProfile();
     } catch (err) {
+      console.error('Failed to add work experience', err);
       toast.error('Failed to add experience');
     }
   };
@@ -137,6 +140,7 @@ function Profile() {
       setShowAddSection(null);
       fetchProfile();
     } catch (err) {
+      console.error('Failed to add education', err);
       toast.error('Failed to add education');
     }
   };

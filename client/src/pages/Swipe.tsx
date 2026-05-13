@@ -42,12 +42,7 @@ function Swipe() {
 
   const { remainingSwipes, dailyLimit, setSwipeInfo, decrementSwipes } = useSwipeStore();
 
-  useEffect(() => {
-    fetchJobs();
-    fetchSwipeInfo();
-  }, [filters]);
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -64,16 +59,21 @@ function Swipe() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
-  const fetchSwipeInfo = async () => {
+  const fetchSwipeInfo = useCallback(async () => {
     try {
       const response = await api.get('/swipes/remaining');
       setSwipeInfo(response.data.remainingSwipes, response.data.dailyLimit);
-    } catch {
-      // Non-critical
+    } catch (err) {
+      console.warn('Failed to fetch swipe allowance', err);
     }
-  };
+  }, [setSwipeInfo]);
+
+  useEffect(() => {
+    fetchJobs();
+    fetchSwipeInfo();
+  }, [fetchJobs, fetchSwipeInfo]);
 
   const handleSwipe = useCallback(async (direction: 'left' | 'right') => {
     if (currentIndex >= jobs.length) return;
@@ -91,7 +91,7 @@ function Swipe() {
         toast.error('Failed to record swipe');
       }
     }
-  }, [currentIndex, jobs]);
+  }, [currentIndex, jobs, decrementSwipes, setSwipeInfo]);
 
   // Keyboard shortcuts
   useEffect(() => {

@@ -43,3 +43,23 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  e2e:
+    name: E2E smoke (Playwright)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: e2e/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=chromium
+        env:
+          PLAYWRIGHT_AUTO_START: '1'

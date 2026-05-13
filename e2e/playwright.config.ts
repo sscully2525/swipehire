@@ -37,9 +37,13 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'docker-compose -f docker-compose.dev.yml up',
+    // Assumes you've started the stack already (docker compose -f docker-compose.dev.yml up).
+    // Set PLAYWRIGHT_AUTO_START=1 to have Playwright bring it up itself.
+    command: process.env.PLAYWRIGHT_AUTO_START
+      ? 'cd .. && docker compose -f docker-compose.dev.yml up'
+      : 'echo "Reusing already-running stack on :3000"',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120000,
+    timeout: 180000,
   },
 });

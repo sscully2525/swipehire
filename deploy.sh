@@ -1,87 +1,88 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # SwipeHire Deployment Script
-# This script sets up the admin account and deploys the application
+# Brings up the production docker-compose stack with strong secrets and creates
+# an initial admin user via the gated /api/setup endpoints.
+
+set -euo pipefail
+
+cd "$(dirname "$0")"
 
 echo "🚀 SwipeHire Deployment Script"
 echo "================================"
 
-# Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
-    echo "❌ Docker is not running. Please start Docker first."
+    echo "❌ Docker daemon is not running."
     exit 1
 fi
 
-# Create .env file if it doesn't exist
-if [ ! -f "server/.env" ]; then
-    echo "📝 Creating server/.env file..."
-    cat > server/.env << EOF
-NODE_ENV=development
-PORT=3001
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=swipehire
-DB_USER=postgres
-DB_PASSWORD=password
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=$(openssl rand -base64 32)
-JWT_REFRESH_SECRET=$(openssl rand -base64 32)
-CLIENT_URL=http://localhost:3000
-EOF
-    echo "✅ Created server/.env"
+if ! docker compose version > /dev/null 2>&1; then
+    echo "❌ 'docker compose' (v2) is required."
+    exit 1
 fi
 
-# Start services with Docker Compose
-echo "🐳 Starting services with Docker Compose..."
-docker-compose up -d
+# Generate a .env if missing
+if [ ! -f ".env" ]; then
+    echo "📝 Creating .env with generated secrets..."
+    cat > .env <<EOF
+DB_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
+JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')
+JWT_REFRESH_SECRET=$(openssl rand -base64 48 | tr -d '\n')
+CLIENT_URL=http://localhost:3000
+SETUP_TOKEN=$(openssl rand -hex 24)
+SEED_DEFAULT_ADMIN=false
+EOF
+    chmod 600 .env
+    echo "✅ Wrote .env (mode 600). Review it and edit CLIENT_URL for production."
+fi
 
-# Wait for services to be ready
-echo "⏳ Waiting for services to be ready..."
-sleep 10
+set -a
+# shellcheck disable=SC1091
+source .env
+set +a
 
-# Initialize database
-echo "🗄️ Initializing database..."
-docker-compose exec -T server npm run db:init
+echo "🐳 Building and starting services..."
+docker compose up -d --build
 
-# Seed sample data
-echo "🌱 Seeding sample data..."
-curl -s -X POST http://localhost:3001/api/startups/seed > /dev/null
+echo "⏳ Waiting for backend health..."
+for i in $(seq 1 30); do
+    if curl -fsS http://localhost:3001/api/health > /dev/null 2>&1; then
+        echo "✅ Backend healthy"
+        break
+    fi
+    sleep 2
+    if [ "$i" -eq 30 ]; then
+        echo "❌ Backend never reported healthy. Check 'docker compose logs server'."
+        exit 1
+    fi
+done
 
-# Create admin account
-echo "👤 Creating admin account..."
+# Optional admin bootstrap
+if [ "${1:-}" = "--admin" ]; then
+    echo ""
+    read -rp "Admin email: " ADMIN_EMAIL
+    read -rsp "Admin password: " ADMIN_PASSWORD; echo
+    read -rp "First name: " ADMIN_FIRSTNAME
+    read -rp "Last name: " ADMIN_LASTNAME
+
+    curl -fsS -X POST http://localhost:3001/api/setup/setup-admin \
+        -H "Content-Type: application/json" \
+        -H "X-Setup-Token: ${SETUP_TOKEN}" \
+        -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\",\"firstName\":\"${ADMIN_FIRSTNAME}\",\"lastName\":\"${ADMIN_LASTNAME}\"}" \
+        > /dev/null
+    echo "✅ Admin user created."
+
+    curl -fsS -X POST http://localhost:3001/api/setup/seed-admin-company \
+        -H "Content-Type: application/json" \
+        -H "X-Setup-Token: ${SETUP_TOKEN}" \
+        -d "{\"adminEmail\":\"${ADMIN_EMAIL}\"}" > /dev/null
+    echo "✅ Seeded admin demo company."
+fi
+
 echo ""
-echo "Please enter admin details:"
-read -p "Email: " ADMIN_EMAIL
-read -s -p "Password: " ADMIN_PASSWORD
-echo ""
-read -p "First Name: " ADMIN_FIRSTNAME
-read -p "Last Name: " ADMIN_LASTNAME
-
-# Create admin via API
-curl -s -X POST http://localhost:3001/api/setup/setup-admin \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\",\"firstName\":\"$ADMIN_FIRSTNAME\",\"lastName\":\"$ADMIN_LASTNAME\"}" > /dev/null
-
-# Seed admin company
-curl -s -X POST http://localhost:3001/api/setup/seed-admin-company \
-  -H "Content-Type: application/json" \
-  -d "{\"adminEmail\":\"$ADMIN_EMAIL\"}" > /dev/null
-
-echo ""
-echo "✅ Setup complete!"
-echo ""
-echo "🌐 Application URLs:"
-echo "   Frontend: http://localhost"
+echo "🌐 URLs:"
+echo "   Frontend:    http://localhost:3000"
 echo "   Backend API: http://localhost:3001"
-echo "   API Health: http://localhost:3001/api/health"
+echo "   Health:      http://localhost:3001/api/health"
 echo ""
-echo "👤 Admin Account:"
-echo "   Email: $ADMIN_EMAIL"
-echo ""
-echo "📋 Next steps:"
-echo "   1. Open http://localhost in your browser"
-echo "   2. Log in with your admin credentials"
-echo "   3. Start swiping or go to /recruiter/dashboard for company view"
-echo ""
-echo "🛑 To stop: docker-compose down"
-echo "🔄 To restart: docker-compose restart"
+echo "🛑 Stop:    docker compose down"
+echo "🔄 Restart: docker compose restart"

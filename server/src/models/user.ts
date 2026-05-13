@@ -12,6 +12,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
+  role: string;
   title?: string;
   bio?: string;
   skills?: string[];
@@ -72,7 +73,7 @@ export const findUserById = async (id: string): Promise<User | null> => {
   }
   
   const result = await query(
-    `SELECT id, email, first_name, last_name, title, bio, skills, linkedin_url, 
+    `SELECT id, email, first_name, last_name, role, title, bio, skills, linkedin_url,
             github_url, portfolio_url, resume_url, avatar_url, video_intro_url,
             location, years_experience, preferred_salary_min, preferred_salary_max,
             remote_preference, daily_swipes, subscription_tier, email_verified,

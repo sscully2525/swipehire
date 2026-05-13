@@ -23,7 +23,7 @@ interface Match {
 }
 
 function Work() {
-  const { user, clearAuth } = useAuthStore();
+  const { clearAuth } = useAuthStore();
   const [activeTab, setActiveTab] = useState('overview');
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState({

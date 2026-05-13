@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-interface User {
+export interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
+  role: 'candidate' | 'recruiter' | 'admin';
   title?: string;
   dailySwipes: number;
   subscriptionTier: string;

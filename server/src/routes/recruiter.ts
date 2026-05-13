@@ -10,7 +10,7 @@ const authenticate = (req: any, res: any, next: any) => {
   if (!token) {
     return res.status(401).json({ error: 'No token provided' });
   }
-  
+
   try {
     const decoded = verifyAccessToken(token);
     req.userId = decoded.userId;
@@ -20,8 +20,16 @@ const authenticate = (req: any, res: any, next: any) => {
   }
 };
 
+const requireRecruiter = async (req: any, res: any, next: any) => {
+  const result = await query('SELECT role FROM users WHERE id = $1', [req.userId]);
+  if (result.rows.length === 0 || !['recruiter', 'admin'].includes(result.rows[0].role)) {
+    return res.status(403).json({ error: 'Recruiter access required' });
+  }
+  next();
+};
+
 // Get recruiter's companies
-router.get('/companies', authenticate, async (req, res) => {
+router.get('/companies', authenticate, requireRecruiter, async (req, res) => {
   try {
     const result = await query(
       `SELECT s.*, 
@@ -39,7 +47,7 @@ router.get('/companies', authenticate, async (req, res) => {
 });
 
 // Create company
-router.post('/companies', authenticate, async (req, res) => {
+router.post('/companies', authenticate, requireRecruiter, async (req, res) => {
   try {
     const { name, description, mission, stage, location, size, website } = req.body;
     
@@ -59,7 +67,7 @@ router.post('/companies', authenticate, async (req, res) => {
 });
 
 // Get company details
-router.get('/companies/:id', authenticate, async (req, res) => {
+router.get('/companies/:id', authenticate, requireRecruiter, async (req, res) => {
   try {
     const companyResult = await query(
       `SELECT s.* FROM startups s
@@ -86,7 +94,7 @@ router.get('/companies/:id', authenticate, async (req, res) => {
 });
 
 // Create job posting
-router.post('/companies/:id/jobs', authenticate, async (req, res) => {
+router.post('/companies/:id/jobs', authenticate, requireRecruiter, async (req, res) => {
   try {
     const companyResult = await query(
       'SELECT id FROM startups WHERE id = $1 AND created_by = $2',
@@ -123,7 +131,7 @@ router.post('/companies/:id/jobs', authenticate, async (req, res) => {
 });
 
 // Get candidates who swiped right on company's jobs
-router.get('/candidates', authenticate, async (req, res) => {
+router.get('/candidates', authenticate, requireRecruiter, async (req, res) => {
   try {
     const result = await query(
       `SELECT DISTINCT 
@@ -152,7 +160,7 @@ router.get('/candidates', authenticate, async (req, res) => {
 });
 
 // Get matches for recruiter's companies
-router.get('/matches', authenticate, async (req, res) => {
+router.get('/matches', authenticate, requireRecruiter, async (req, res) => {
   try {
     const result = await query(
       `SELECT m.*, 
@@ -175,7 +183,7 @@ router.get('/matches', authenticate, async (req, res) => {
 });
 
 // Like a candidate (create match)
-router.post('/candidates/:userId/like', authenticate, async (req, res) => {
+router.post('/candidates/:userId/like', authenticate, requireRecruiter, async (req, res) => {
   try {
     const { jobId } = req.body;
     
@@ -216,7 +224,7 @@ router.post('/candidates/:userId/like', authenticate, async (req, res) => {
 });
 
 // Pass on a candidate
-router.post('/candidates/:userId/pass', authenticate, async (req, res) => {
+router.post('/candidates/:userId/pass', authenticate, requireRecruiter, async (req, res) => {
   try {
     const { jobId } = req.body;
     
@@ -233,7 +241,7 @@ router.post('/candidates/:userId/pass', authenticate, async (req, res) => {
 });
 
 // Get recruiter dashboard stats
-router.get('/dashboard', authenticate, async (req, res) => {
+router.get('/dashboard', authenticate, requireRecruiter, async (req, res) => {
   try {
     const companiesResult = await query(
       'SELECT COUNT(*) as count FROM startups WHERE created_by = $1',

@@ -224,50 +224,76 @@ router.post('/webhook', async (req, res) => {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const { userId, planId } = session.metadata || {};
-        const customer = session.customer;
-        const subscription = session.subscription;
-        
-        if (userId && planId && customer && subscription) {
+        const customer = session.customer as string;
+        const subscriptionId = session.subscription as string;
+
+        if (userId && planId && customer && subscriptionId) {
+          // Fetch real subscription period from Stripe
+          const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
           await query(
             `INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, tier, status, current_period_start, current_period_end)
              VALUES ($1, $2, $3, $4, 'active', to_timestamp($5), to_timestamp($6))
              ON CONFLICT (stripe_subscription_id) DO UPDATE SET
                status = 'active',
+               tier = $4,
                current_period_start = to_timestamp($5),
                current_period_end = to_timestamp($6)`,
-            [userId, customer as string, subscription as string, planId, session.created, session.expires_at || Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60]
+            [userId, customer, subscriptionId, planId, stripeSub.current_period_start, stripeSub.current_period_end]
           );
-          
+          await query('UPDATE users SET subscription_tier = $1 WHERE id = $2', [planId, userId]);
+        }
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const tier = subscription.metadata?.planId || (subscription.items.data[0]?.price?.id === process.env.STRIPE_PRO_PRICE_ID ? 'pro' : 'unlimited');
+        await query(
+          `UPDATE subscriptions
+           SET status = $1, tier = $2, current_period_start = to_timestamp($3), current_period_end = to_timestamp($4),
+               cancel_at_period_end = $5, updated_at = CURRENT_TIMESTAMP
+           WHERE stripe_subscription_id = $6`,
+          [subscription.status, tier, subscription.current_period_start, subscription.current_period_end, subscription.cancel_at_period_end, subscription.id]
+        );
+        await query(
+          `UPDATE users SET subscription_tier = $1
+           WHERE id = (SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $2)`,
+          [subscription.status === 'active' ? tier : 'free', subscription.id]
+        );
+        break;
+      }
+
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+        if (invoice.subscription) {
+          const stripeSub = await stripe.subscriptions.retrieve(invoice.subscription as string);
           await query(
-            'UPDATE users SET subscription_tier = $1 WHERE id = $2',
-            [planId, userId]
+            `UPDATE subscriptions
+             SET status = 'active', current_period_start = to_timestamp($1), current_period_end = to_timestamp($2)
+             WHERE stripe_subscription_id = $3`,
+            [stripeSub.current_period_start, stripeSub.current_period_end, invoice.subscription]
           );
         }
         break;
       }
-        
-      case 'invoice.payment_succeeded': {
+
+      case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
         if (invoice.subscription) {
           await query(
-            `UPDATE subscriptions 
-             SET status = 'active'
-             WHERE stripe_subscription_id = $1`,
+            `UPDATE subscriptions SET status = 'past_due' WHERE stripe_subscription_id = $1`,
             [invoice.subscription]
           );
         }
         break;
       }
-        
+
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         await query(
-          `UPDATE subscriptions 
-           SET status = 'canceled', cancel_at_period_end = true
-           WHERE stripe_subscription_id = $1`,
+          `UPDATE subscriptions SET status = 'canceled', cancel_at_period_end = true WHERE stripe_subscription_id = $1`,
           [subscription.id]
         );
-        
         await query(
           `UPDATE users SET subscription_tier = 'free'
            WHERE id = (SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1)`,

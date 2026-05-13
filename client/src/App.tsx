@@ -7,6 +7,8 @@ import api from './lib/api';
 // Candidate Pages
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import RecruiterSignup from './pages/RecruiterSignup';
+import AuthCallback from './pages/AuthCallback';
 import Onboarding from './pages/Onboarding';
 import Swipe from './pages/Swipe';
 import Matches from './pages/Matches';
@@ -23,6 +25,8 @@ import Layout from './components/Layout';
 import RecruiterLayout from './components/RecruiterLayout';
 import RecruiterDashboard from './pages/recruiter/Dashboard';
 import Candidates from './pages/recruiter/Candidates';
+import RecruiterMatches from './pages/recruiter/RecruiterMatches';
+import RecruiterCompanies from './pages/recruiter/RecruiterCompanies';
 
 function App() {
   const { isAuthenticated, user, setAuth, clearAuth } = useAuthStore();
@@ -33,17 +37,30 @@ function App() {
   }, []);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    const stored = useAuthStore.getState();
+    if (!stored.accessToken) {
       setIsLoading(false);
       return;
     }
-
     try {
-      const response = await api.get('/profile');
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      setAuth({ ...storedUser, ...response.data }, token, '');
-    } catch (err) {
+      const response = await api.get('/auth/me');
+      const me = response.data;
+      setAuth(
+        {
+          id: me.id,
+          email: me.email,
+          firstName: me.firstName,
+          lastName: me.lastName,
+          role: me.role || 'candidate',
+          title: me.title,
+          dailySwipes: me.dailySwipes ?? 10,
+          subscriptionTier: me.subscriptionTier ?? 'free',
+          onboardingCompleted: me.onboardingCompleted ?? false,
+        },
+        stored.accessToken!,
+        stored.refreshToken || ''
+      );
+    } catch {
       clearAuth();
     } finally {
       setIsLoading(false);
@@ -53,112 +70,105 @@ function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     );
   }
+
+  const isRecruiter = user?.role === 'recruiter' || user?.role === 'admin';
+  const isCandidate = !isRecruiter;
+
+  // Smart default redirect based on role
+  const defaultRedirect = isAuthenticated
+    ? isRecruiter
+      ? '/recruiter/dashboard'
+      : user?.onboardingCompleted
+        ? '/swipe'
+        : '/onboarding'
+    : '/login';
 
   return (
     <>
       <Toaster position="top-center" />
       <Routes>
         {/* Public routes */}
-        <Route 
-          path="/login" 
-          element={isAuthenticated ? <Navigate to="/swipe" /> : <Login />} 
+        <Route
+          path="/login"
+          element={isAuthenticated ? <Navigate to={defaultRedirect} /> : <Login />}
         />
-        <Route 
-          path="/signup" 
-          element={isAuthenticated ? <Navigate to="/swipe" /> : <Signup />} 
+        <Route
+          path="/signup"
+          element={isAuthenticated ? <Navigate to={defaultRedirect} /> : <Signup />}
         />
-        
-        {/* Onboarding */}
-        <Route 
-          path="/onboarding" 
+        <Route
+          path="/recruiter-signup"
+          element={isAuthenticated ? <Navigate to={defaultRedirect} /> : <RecruiterSignup />}
+        />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+
+        {/* Onboarding (candidates only) */}
+        <Route
+          path="/onboarding"
           element={
-            isAuthenticated && !user?.onboardingCompleted ? (
+            isAuthenticated && isCandidate && !user?.onboardingCompleted ? (
               <Onboarding />
             ) : (
-              <Navigate to="/swipe" />
+              <Navigate to={defaultRedirect} />
             )
-          } 
+          }
         />
-        
+
         {/* Candidate Routes */}
         <Route element={<Layout />}>
-          <Route 
-            path="/swipe" 
+          <Route
+            path="/swipe"
             element={
-              isAuthenticated ? (
-                user?.onboardingCompleted ? <Swipe /> : <Navigate to="/onboarding" />
-              ) : (
-                <Navigate to="/login" />
-              )
-            } 
+              !isAuthenticated ? <Navigate to="/login" /> :
+              isRecruiter ? <Navigate to="/recruiter/dashboard" /> :
+              !user?.onboardingCompleted ? <Navigate to="/onboarding" /> :
+              <Swipe />
+            }
           />
-          <Route 
-            path="/matches" 
-            element={isAuthenticated ? <Matches /> : <Navigate to="/login" />} 
+          <Route
+            path="/matches"
+            element={
+              !isAuthenticated ? <Navigate to="/login" /> :
+              isRecruiter ? <Navigate to="/recruiter/matches" /> :
+              <Matches />
+            }
           />
-          <Route 
-            path="/profile" 
-            element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/analytics" 
-            element={isAuthenticated ? <Analytics /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/subscription" 
-            element={isAuthenticated ? <Subscription /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/api-tester" 
-            element={isAuthenticated ? <ApiTester /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/notifications" 
-            element={isAuthenticated ? <Notifications /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/work" 
-            element={isAuthenticated ? <Work /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/messages" 
-            element={isAuthenticated ? <Messages /> : <Navigate to="/login" />} 
-          />
+          <Route path="/profile" element={isAuthenticated && isCandidate ? <Profile /> : <Navigate to={defaultRedirect} />} />
+          <Route path="/analytics" element={isAuthenticated && isCandidate ? <Analytics /> : <Navigate to={defaultRedirect} />} />
+          <Route path="/subscription" element={isAuthenticated ? <Subscription /> : <Navigate to="/login" />} />
+          <Route path="/api-tester" element={isAuthenticated ? <ApiTester /> : <Navigate to="/login" />} />
+          <Route path="/notifications" element={isAuthenticated ? <Notifications /> : <Navigate to="/login" />} />
+          <Route path="/work" element={isAuthenticated && isCandidate ? <Work /> : <Navigate to={defaultRedirect} />} />
+          <Route path="/messages" element={isAuthenticated && isCandidate ? <Messages /> : <Navigate to={defaultRedirect} />} />
         </Route>
 
         {/* Recruiter Routes */}
         <Route element={<RecruiterLayout />}>
-          <Route 
-            path="/recruiter/dashboard" 
-            element={isAuthenticated ? <RecruiterDashboard /> : <Navigate to="/login" />} 
+          <Route
+            path="/recruiter/dashboard"
+            element={isAuthenticated && isRecruiter ? <RecruiterDashboard /> : <Navigate to={defaultRedirect} />}
           />
-          <Route 
-            path="/recruiter/candidates" 
-            element={isAuthenticated ? <Candidates /> : <Navigate to="/login" />} 
+          <Route
+            path="/recruiter/candidates"
+            element={isAuthenticated && isRecruiter ? <Candidates /> : <Navigate to={defaultRedirect} />}
           />
-          <Route 
-            path="/recruiter/matches" 
-            element={isAuthenticated ? <div>Matches Page</div> : <Navigate to="/login" />} 
+          <Route
+            path="/recruiter/matches"
+            element={isAuthenticated && isRecruiter ? <RecruiterMatches /> : <Navigate to={defaultRedirect} />}
           />
-          <Route 
-            path="/recruiter/companies" 
-            element={isAuthenticated ? <div>Companies Page</div> : <Navigate to="/login" />} 
+          <Route
+            path="/recruiter/companies"
+            element={isAuthenticated && isRecruiter ? <RecruiterCompanies /> : <Navigate to={defaultRedirect} />}
           />
         </Route>
-        
+
         {/* Default redirect */}
-        <Route 
-          path="/" 
-          element={<Navigate to={isAuthenticated ? "/swipe" : "/login"} />} 
-        />
-        <Route 
-          path="*" 
-          element={<Navigate to={isAuthenticated ? "/swipe" : "/login"} />} 
-        />
+        <Route path="/" element={<Navigate to={defaultRedirect} />} />
+        <Route path="*" element={<Navigate to={defaultRedirect} />} />
       </Routes>
     </>
   );

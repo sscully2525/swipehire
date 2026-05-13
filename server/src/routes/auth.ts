@@ -8,9 +8,9 @@ import {
   verifyPassword,
   generateTokens,
   verifyAccessToken,
-  verifyRefreshToken,
+  verifyAndConsumeRefreshToken,
   storeRefreshToken,
-  invalidateRefreshToken
+  invalidateRefreshToken,
 } from '../models/user';
 import { query } from '../db';
 import { logger } from '../index';
@@ -114,17 +114,20 @@ router.post('/login', [
 router.post('/refresh', async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    
+
     if (!refreshToken) {
       return res.status(401).json({ error: 'Refresh token required' });
     }
-    
-    const decoded = verifyRefreshToken(refreshToken);
-    const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded.userId);
-    await storeRefreshToken(decoded.userId, newRefreshToken);
-    
+
+    // Enforces rotation: rejects any refresh token that doesn't match
+    // the one currently stored in Redis for this user (i.e. reuse of an
+    // older refresh token after a rotation will fail).
+    const { userId } = await verifyAndConsumeRefreshToken(refreshToken);
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(userId);
+    await storeRefreshToken(userId, newRefreshToken);
+
     res.json({ accessToken, refreshToken: newRefreshToken });
-  } catch (error) {
+  } catch {
     res.status(401).json({ error: 'Invalid refresh token' });
   }
 });
@@ -141,7 +144,7 @@ router.post('/logout', async (req, res) => {
     }
     
     res.json({ message: 'Logged out successfully' });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Logout failed' });
   }
 });
@@ -227,7 +230,7 @@ router.get('/me', async (req, res) => {
       subscriptionTier: user.subscription_tier,
       onboardingCompleted: user.onboarding_completed
     });
-  } catch (error) {
+  } catch {
     res.status(401).json({ error: 'Invalid token' });
   }
 });

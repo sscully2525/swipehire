@@ -146,11 +146,36 @@ export const generateTokens = (userId: string) => {
 };
 
 export const verifyAccessToken = (token: string): any => {
-  return jwt.verify(token, JWT_SECRET);
+  const decoded: any = jwt.verify(token, JWT_SECRET);
+  // Reject tokens minted with `type: 'refresh'` from being used as access tokens.
+  if (decoded && decoded.type && decoded.type !== 'access') {
+    throw new Error('Invalid token type');
+  }
+  return decoded;
 };
 
 export const verifyRefreshToken = (token: string): any => {
-  return jwt.verify(token, JWT_REFRESH_SECRET);
+  const decoded: any = jwt.verify(token, JWT_REFRESH_SECRET);
+  if (decoded && decoded.type && decoded.type !== 'refresh') {
+    throw new Error('Invalid token type');
+  }
+  return decoded;
+};
+
+/**
+ * Verifies the refresh token signature/expiry AND enforces rotation by
+ * comparing the presented token against the one stored in Redis. Reject
+ * if mismatch (re-use of an old refresh token).
+ */
+export const verifyAndConsumeRefreshToken = async (
+  token: string
+): Promise<{ userId: string }> => {
+  const decoded = verifyRefreshToken(token);
+  const stored = await redis.get(`refresh:${decoded.userId}`);
+  if (!stored || stored !== token) {
+    throw new Error('Refresh token revoked or rotated');
+  }
+  return { userId: decoded.userId };
 };
 
 export const storeRefreshToken = async (userId: string, token: string): Promise<void> => {

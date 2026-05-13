@@ -48,7 +48,7 @@ function Subscription() {
 
   const fetchCurrentSubscription = async () => {
     try {
-      const response = await api.get('/payments/subscription');
+      const response = await api.get('/stripe/subscription');
       setCurrentPlan(response.data.tier);
     } catch {
       // Non-critical

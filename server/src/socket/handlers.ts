@@ -6,6 +6,7 @@ import { updateLastActive } from '../models/user';
 import { createNotification } from '../models/notification';
 import { redis } from '../index';
 import { query } from '../db';
+import { logger } from '../logger';
 
 // Match the env-required pattern used by `models/user.ts` (production
 // bootstrap in `index.ts` refuses to start without a strong JWT_SECRET).
@@ -47,7 +48,7 @@ export const initSocketHandlers = (io: Server) => {
 
   io.on('connection', (socket: AuthenticatedSocket) => {
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`User ${socket.userId} connected`);
+      logger.info({ userId: socket.userId, socketId: socket.id }, 'Socket connected');
     }
 
     // Join user's room for notifications
@@ -94,7 +95,7 @@ export const initSocketHandlers = (io: Server) => {
         const senderType = isCandidate ? 'company' : 'candidate';
         await markMessagesAsRead(matchId, senderType);
       } catch (err) {
-        console.error('[socket] join_match error', { userId: socket.userId, matchId, err });
+        logger.error({ userId: socket.userId, matchId, err }, 'Socket join_match error');
         socket.emit('error', { message: 'Failed to join match' });
       }
     });
@@ -160,7 +161,7 @@ export const initSocketHandlers = (io: Server) => {
           io.to(`user:${match.user_id}`).emit('notification', notif);
         }
       } catch (err) {
-        console.error('[socket] send_message error', { userId: socket.userId, err });
+        logger.error({ userId: socket.userId, err }, 'Socket send_message error');
         socket.emit('error', { message: 'Failed to send message' });
       }
     });
@@ -187,7 +188,7 @@ export const initSocketHandlers = (io: Server) => {
 
     socket.on('disconnect', async () => {
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`User ${socket.userId} disconnected`);
+        logger.info({ userId: socket.userId, socketId: socket.id }, 'Socket disconnected');
       }
       if (socket.userId) {
         await redis.del(`socket:${socket.userId}`);

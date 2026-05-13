@@ -1,5 +1,6 @@
 import { query } from '../db';
 import { redis } from '../index';
+import { logger } from '../logger';
 
 // Simple TF-IDF-like scoring for skill matching
 export const calculateMatchScore = async (
@@ -99,7 +100,7 @@ export const calculateMatchScore = async (
     
     return Math.round(finalScore * 100) / 100;
   } catch (err) {
-    console.error('AI match score error:', err);
+    logger.error({ err, userId, jobId }, 'AI match score error');
     return 0.5;
   }
 };

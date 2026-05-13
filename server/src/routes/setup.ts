@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { query } from '../db';
 import { verifyAccessToken } from '../models/user';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -176,7 +177,7 @@ async function seedCompanies(): Promise<number> {
       }
       createdCount++;
     } catch (err) {
-      console.log(`Skipped ${company.name}:`, (err as Error).message);
+      logger.warn({ company: company.name, err: (err as Error).message }, 'Skipped company during seed');
     }
   }
   return createdCount;
@@ -199,7 +200,7 @@ router.post('/setup-admin', devOnly, async (req, res) => {
     );
     res.json({ message: 'Admin created successfully', userId: id });
   } catch (error) {
-    console.error('Setup admin error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Setup admin error');
     res.status(500).json({ error: 'Failed to create admin' });
   }
 });
@@ -243,7 +244,7 @@ router.post('/seed-admin-company', devOnly, async (req, res) => {
     }
     res.json({ message: 'Admin company seeded successfully', startupId: actualId });
   } catch (error) {
-    console.error('Seed admin company error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Seed admin company error');
     res.status(500).json({ error: 'Failed to seed admin company' });
   }
 });
@@ -258,7 +259,7 @@ router.get('/seed-sample-companies', async (req, res) => {
     const createdCount = await seedCompanies();
     res.json({ message: `Successfully created ${createdCount} sample companies with jobs`, count: createdCount });
   } catch (error) {
-    console.error('Seed sample companies error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Seed sample companies error');
     res.status(500).json({ error: 'Failed to seed sample companies' });
   }
 });
@@ -269,7 +270,7 @@ router.post('/seed-sample-companies', devOnly, authenticate, requireAdmin, async
     const createdCount = await seedCompanies();
     res.json({ message: `Successfully created ${createdCount} sample companies with jobs`, count: createdCount });
   } catch (error) {
-    console.error('Seed sample companies error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Seed sample companies error');
     res.status(500).json({ error: 'Failed to seed sample companies' });
   }
 });
@@ -312,7 +313,7 @@ router.get('/admin-stats', authenticate, requireAdmin, async (req, res) => {
       topStartups: topStartups.rows
     });
   } catch (error) {
-    console.error('Admin stats error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Admin stats error');
     res.status(500).json({ error: 'Failed to fetch admin stats' });
   }
 });
@@ -325,7 +326,7 @@ router.post('/clear-swipes', devOnly, authenticate, async (req, res) => {
     await query('DELETE FROM swipes WHERE user_id = $1', [targetId]);
     res.json({ message: 'Swipes cleared' });
   } catch (error) {
-    console.error('Clear swipes error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Clear swipes error');
     res.status(500).json({ error: 'Failed to clear swipes' });
   }
 });

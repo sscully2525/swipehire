@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import { logger } from '../logger';
 
 dotenv.config();
 
@@ -27,7 +28,7 @@ pool.on('error', (err) => {
   // Don't kill the process on a transient idle-client error — pg will
   // recreate the connection on the next checkout. Just log and move on.
   
-  console.error('Unexpected error on idle client', err);
+  logger.error({ err }, 'Unexpected error on idle Postgres client');
 });
 
 export const query = (text: string, params?: any[]) => pool.query(text, params);
@@ -44,16 +45,16 @@ export const initDB = async () => {
     await testClient.query('SELECT 1');
     testClient.release();
     
-    console.log('✅ Database connected');
+    logger.info('✅ Database connected');
 
     const { runMigrations } = await import('./migrate');
     await runMigrations();
 
     
-    console.log('✅ Database initialized');
+    logger.info('✅ Database initialized');
   } catch (err: any) {
     
-    console.error('❌ Database init failed:', err.message);
+    logger.error({ err: err.message }, '❌ Database init failed');
     throw err;
   }
 };

@@ -3,6 +3,7 @@ import { query } from '../db';
 import { getJobsForSwiping, getJobById, incrementJobViews, seedStartupsAndJobs } from '../models/startup';
 import { calculateMatchScore } from '../services/ai';
 import { authenticate, requireAdmin } from '../middleware/auth';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -30,7 +31,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     
     res.json(jobsWithScores);
   } catch (error) {
-    console.error('Get jobs error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Get jobs error');
     res.status(500).json({ error: 'Failed to fetch jobs' });
   }
 });
@@ -72,7 +73,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
     
     res.json({ ...job, match_score: matchScore });
   } catch (error) {
-    console.error('Get job error:', error);
+    logger.error({ err: error, userId: req.userId, jobId: req.params.id }, 'Get job error');
     res.status(500).json({ error: 'Failed to fetch job' });
   }
 });
@@ -88,7 +89,7 @@ router.post('/seed', authenticate, requireAdmin, async (req: Request, res: Respo
     await seedStartupsAndJobs();
     res.json({ message: 'Startups and jobs seeded successfully' });
   } catch (error) {
-    console.error('Seed error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Seed jobs error');
     res.status(500).json({ error: 'Failed to seed data' });
   }
 });

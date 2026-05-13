@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { query } from '../db';
 import { verifyAccessToken } from '../models/user';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -113,7 +114,7 @@ router.get('/jobs-by-location', async (req: Request, res: Response) => {
     const result = await query(sql, params);
     res.json({ jobs: result.rows, total: result.rows.length, page: parseInt(page), limit: parseInt(limit) });
   } catch (error) {
-    console.error('Jobs by location error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Jobs by location error');
     res.status(500).json({ error: 'Failed to fetch jobs by location' });
   }
 });
@@ -155,7 +156,7 @@ router.get('/companies-map', async (req: Request, res: Response) => {
     const result = await query(sql, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('Companies map error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Companies map error');
     res.status(500).json({ error: 'Failed to fetch companies for map' });
   }
 });
@@ -184,7 +185,7 @@ router.put('/company-coordinates/:startupId', authenticate, async (req: Request,
     );
     res.json({ message: 'Coordinates updated successfully' });
   } catch (error) {
-    console.error('Update coordinates error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Update coordinates error');
     res.status(500).json({ error: 'Failed to update coordinates' });
   }
 });
@@ -203,7 +204,7 @@ router.post('/geocode-all', authenticate, requireAdmin, async (req: Request, res
     }
     res.json({ message: `Geocoded ${results.length} companies`, results });
   } catch (error) {
-    console.error('Geocode all error:', error);
+    logger.error({ err: error, userId: (req as any).userId }, 'Geocode all error');
     res.status(500).json({ error: 'Failed to geocode companies' });
   }
 });
@@ -223,7 +224,7 @@ router.get('/popular-locations', async (req: Request, res: Response) => {
     `);
     res.json(result.rows);
   } catch (error) {
-    console.error('Popular locations error:', error);
+    logger.error({ err: error }, 'Popular locations error');
     res.status(500).json({ error: 'Failed to fetch popular locations' });
   }
 });

@@ -3,6 +3,7 @@ import { getUserMatches, getMatchById, updateMatchStatus } from '../models/swipe
 import { getMessagesByMatch, markMessagesAsRead } from '../models/chat';
 import { body } from 'express-validator';
 import { authenticate } from '../middleware/auth';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -11,7 +12,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     const matches = await getUserMatches(req.userId!);
     res.json(matches);
   } catch (error) {
-    console.error('Get matches error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Get matches error');
     res.status(500).json({ error: 'Failed to fetch matches' });
   }
 });
@@ -29,7 +30,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
 
     res.json({ ...match, messages });
   } catch (error) {
-    console.error('Get match error:', error);
+    logger.error({ err: error, userId: req.userId, matchId: req.params.id }, 'Get match error');
     res.status(500).json({ error: 'Failed to fetch match' });
   }
 });
@@ -78,7 +79,7 @@ router.put('/:id/status', authenticate, [
     await updateMatchStatus(req.params.id, status, { scheduledCallAt, callLink, notes });
     res.json({ message: 'Status updated successfully' });
   } catch (error) {
-    console.error('Update status error:', error);
+    logger.error({ err: error, userId: req.userId, matchId: req.params.id }, 'Update match status error');
     res.status(500).json({ error: 'Failed to update status' });
   }
 });
@@ -120,7 +121,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
 
     res.json({ message: 'Match removed successfully' });
   } catch (error) {
-    console.error('Unmatch error:', error);
+    logger.error({ err: error, userId: req.userId, matchId: req.params.id }, 'Unmatch error');
     res.status(500).json({ error: 'Failed to remove match' });
   }
 });

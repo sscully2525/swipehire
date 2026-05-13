@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, getSwipeLimit } from '../models/user';
 import { query } from '../db';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -81,7 +82,7 @@ router.get('/subscription', authenticate, async (req: Request, res: Response) =>
       }
     });
   } catch (error) {
-    console.error('Get subscription error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Get subscription error');
     res.status(500).json({ error: 'Failed to fetch subscription' });
   }
 });
@@ -97,9 +98,12 @@ router.post('/subscribe', authenticate, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid plan' });
     }
     // Delegate to Stripe route if configured, otherwise inform client
+    res.setHeader('Deprecation', 'true');
+    res.setHeader('Link', '</api/stripe/checkout>; rel="successor-version"');
     res.json({
-      message: 'Use /api/stripe/checkout to initiate payment',
+      message: 'Payments are handled by Stripe checkout. Please call /api/stripe/checkout.',
       planId,
+      checkoutPath: '/api/stripe/checkout',
       stripeAvailable: !!process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('dummy')
     });
   } catch {

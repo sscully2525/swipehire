@@ -5,6 +5,7 @@ import { verifyAccessToken } from '../models/user';
 import { createNotification } from '../models/notification';
 import { query } from '../db';
 import { body, validationResult } from 'express-validator';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -73,7 +74,7 @@ router.post('/:matchId/messages', authenticate, [
   } catch (err: any) {
     if (err.status === 404) return res.status(404).json({ error: err.message });
     if (err.status === 403) return res.status(403).json({ error: err.message });
-    console.error('Send message error:', err);
+    logger.error({ err, userId: req.userId, matchId: req.params.matchId }, 'Send message error');
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
@@ -107,7 +108,7 @@ router.get('/:matchId/messages', authenticate, async (req: Request, res: Respons
   } catch (err: any) {
     if (err.status === 404) return res.status(404).json({ error: err.message });
     if (err.status === 403) return res.status(403).json({ error: err.message });
-    console.error('Get messages error:', err);
+    logger.error({ err, userId: req.userId, matchId: req.params.matchId }, 'Get messages error');
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });

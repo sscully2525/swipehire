@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { Check, Sparkles, Zap, Crown, X } from 'lucide-react';
 
 interface Plan {
-  id: string;
   name: string;
   price: number;
   swipeLimit: number;

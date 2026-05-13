@@ -7,6 +7,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { createClient } from 'redis';
 import winston from 'winston';
+import path from 'path';
 
 import authRoutes from './routes/auth';
 import startupRoutes from './routes/startups';
@@ -68,7 +69,8 @@ const PORT = process.env.PORT || 3001;
 
 // Security middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false,
 }));
 
 app.use(cors({
@@ -135,6 +137,15 @@ app.get('/api/health', async (req, res) => {
     version: '2.0.0'
   });
 });
+
+// Serve React app in production (must come after all API routes)
+if (process.env.NODE_ENV === 'production') {
+  const clientDist = path.join(__dirname, '../../client/dist');
+  app.use(express.static(clientDist));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { query } from '../db';
 import { verifyAccessToken } from '../models/user';
 import { getRecommendations } from '../services/ai';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -73,8 +74,48 @@ router.get('/dashboard', authenticate, async (req: Request, res: Response) => {
       skillMatches: skillMatches.rows
     });
   } catch (error) {
-    console.error('Analytics error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Analytics dashboard error');
     res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+
+router.get('/candidate', authenticate, async (req: Request, res: Response) => {
+  try {
+    const [swipeStats, matchStats, messageStats, allowance] = await Promise.all([
+      query(
+        `SELECT
+          COUNT(*) FILTER (WHERE direction = 'right')::int as "swipesRight",
+          COUNT(*) FILTER (WHERE direction = 'left')::int as "swipesLeft",
+          COUNT(*) FILTER (WHERE created_at > CURRENT_DATE)::int as "swipesToday"
+         FROM swipes WHERE user_id = $1`,
+        [req.userId!]
+      ),
+      query(`SELECT COUNT(*)::int as matches FROM matches WHERE user_id = $1`, [req.userId!]),
+      query(
+        `SELECT COUNT(*)::int as messages
+         FROM messages msg
+         JOIN matches m ON m.id = msg.match_id
+         WHERE m.user_id = $1`,
+        [req.userId!]
+      ),
+      query(`SELECT daily_swipes, subscription_tier FROM users WHERE id = $1`, [req.userId!]),
+    ]);
+
+    const dailyLimit = allowance.rows[0]?.daily_swipes ?? 10;
+    const swipesToday = swipeStats.rows[0]?.swipesToday ?? 0;
+    res.json({
+      swipesRight: swipeStats.rows[0]?.swipesRight ?? 0,
+      swipesLeft: swipeStats.rows[0]?.swipesLeft ?? 0,
+      swipesToday,
+      remainingSwipes: Math.max(0, dailyLimit - swipesToday),
+      matches: matchStats.rows[0]?.matches ?? 0,
+      messages: messageStats.rows[0]?.messages ?? 0,
+      subscriptionTier: allowance.rows[0]?.subscription_tier ?? 'free',
+    });
+  } catch (error) {
+    logger.error({ err: error, userId: req.userId }, 'Candidate analytics error');
+    res.status(500).json({ error: 'Failed to fetch candidate analytics' });
   }
 });
 
@@ -83,7 +124,7 @@ router.get('/recommendations', authenticate, async (req: Request, res: Response)
     const recommendations = await getRecommendations(req.userId!, 5);
     res.json(recommendations);
   } catch (error) {
-    console.error('Recommendations error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Recommendations error');
     res.status(500).json({ error: 'Failed to get recommendations' });
   }
 });

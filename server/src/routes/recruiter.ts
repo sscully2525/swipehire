@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db';
+import { logger } from '../logger';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate, requireRecruiter } from '../middleware/auth';
 import {
@@ -8,6 +9,76 @@ import {
 } from '../models/swipe';
 
 const router = Router();
+
+
+const toTextArray = (value: unknown): string[] | null => {
+  if (Array.isArray(value)) {
+    const items = value.map((item) => String(item).trim()).filter(Boolean);
+    return items.length ? items : null;
+  }
+  if (typeof value === 'string') {
+    const items = value
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return items.length ? items : null;
+  }
+  return null;
+};
+
+const toNumberOrNull = (value: unknown): number | null => {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalizeJobPayload = (body: Record<string, unknown>) => ({
+  title: typeof body.title === 'string' ? body.title.trim() : '',
+  description: typeof body.description === 'string' ? body.description.trim() : '',
+  requirements: toTextArray(body.requirements),
+  responsibilities: toTextArray(body.responsibilities),
+  salaryMin: toNumberOrNull(body.salaryMin ?? body.salary_min),
+  salaryMax: toNumberOrNull(body.salaryMax ?? body.salary_max),
+  equityMin: toNumberOrNull(body.equityMin ?? body.equity_min),
+  equityMax: toNumberOrNull(body.equityMax ?? body.equity_max),
+  location: typeof body.location === 'string' ? body.location.trim() : null,
+  remoteAllowed: typeof (body.remoteAllowed ?? body.remote_allowed) === 'boolean'
+    ? (body.remoteAllowed ?? body.remote_allowed) as boolean
+    : true,
+  visaSponsorship: typeof (body.visaSponsorship ?? body.visa_sponsorship) === 'boolean'
+    ? (body.visaSponsorship ?? body.visa_sponsorship) as boolean
+    : false,
+  employmentType: typeof (body.employmentType ?? body.employment_type) === 'string'
+    ? String(body.employmentType ?? body.employment_type).trim()
+    : 'full-time',
+  techStack: toTextArray(body.techStack ?? body.tech_stack),
+  experienceLevel: typeof (body.experienceLevel ?? body.experience_level) === 'string'
+    ? String(body.experienceLevel ?? body.experience_level).trim()
+    : null,
+});
+
+const insertJob = async (startupId: string, body: Record<string, unknown>) => {
+  const job = normalizeJobPayload(body);
+  if (!job.title || !job.description) {
+    return { status: 400 as const, payload: { error: 'Job title and description are required' } };
+  }
+  if (job.salaryMin !== null && job.salaryMax !== null && job.salaryMin > job.salaryMax) {
+    return { status: 400 as const, payload: { error: 'Minimum salary cannot exceed maximum salary' } };
+  }
+
+  const id = uuidv4();
+  await query(
+    `INSERT INTO jobs (id, startup_id, title, description, requirements, responsibilities,
+                       salary_min, salary_max, equity_min, equity_max, location, remote_allowed,
+                       visa_sponsorship, employment_type, tech_stack, experience_level, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'active')`,
+    [id, startupId, job.title, job.description, job.requirements, job.responsibilities,
+     job.salaryMin, job.salaryMax, job.equityMin, job.equityMax, job.location, job.remoteAllowed,
+     job.visaSponsorship, job.employmentType, job.techStack, job.experienceLevel]
+  );
+
+  return { status: 201 as const, payload: { id, message: 'Job created' } };
+};
 
 const slugifyCompany = (name: string): string =>
   name
@@ -93,7 +164,7 @@ router.get('/companies/:id', async (req, res) => {
   }
 });
 
-// Create job posting
+// Create job posting for a specific company.
 router.post('/companies/:id/jobs', async (req, res) => {
   try {
     const companyResult = await query(
@@ -105,27 +176,37 @@ router.post('/companies/:id/jobs', async (req, res) => {
       return res.status(404).json({ error: 'Company not found' });
     }
 
-    const {
-      title, description, requirements, responsibilities,
-      salaryMin, salaryMax, equityMin, equityMax,
-      location, remoteAllowed, visaSponsorship,
-      employmentType, techStack, experienceLevel,
-    } = req.body;
+    const result = await insertJob(req.params.id, req.body || {});
+    res.status(result.status).json(result.payload);
+  } catch (error) {
+    logger.error({ err: error, userId: req.userId, companyId: req.params.id }, 'Create recruiter company job error');
+    res.status(500).json({ error: 'Failed to create job' });
+  }
+});
 
-    const id = uuidv4();
-
-    await query(
-      `INSERT INTO jobs (id, startup_id, title, description, requirements, responsibilities,
-                         salary_min, salary_max, equity_min, equity_max, location, remote_allowed,
-                         visa_sponsorship, employment_type, tech_stack, experience_level)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
-      [id, req.params.id, title, description, requirements, responsibilities,
-       salaryMin, salaryMax, equityMin, equityMax, location, remoteAllowed,
-       visaSponsorship, employmentType, techStack, experienceLevel]
+// Backward-compatible dashboard endpoint. Older dashboard UI posted here
+// without a company id; create under the requested companyId or the
+// recruiter's first company.
+router.post('/jobs', async (req, res) => {
+  try {
+    const requestedCompanyId = typeof req.body?.companyId === 'string' ? req.body.companyId : null;
+    const companyResult = await query(
+      `SELECT id FROM startups
+       WHERE created_by = $1
+         AND ($2::uuid IS NULL OR id = $2::uuid)
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [req.userId, requestedCompanyId]
     );
 
-    res.status(201).json({ id, message: 'Job created' });
-  } catch {
+    if (companyResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Create a company before posting a job' });
+    }
+
+    const result = await insertJob(companyResult.rows[0].id, req.body || {});
+    res.status(result.status).json(result.payload);
+  } catch (error) {
+    logger.error({ err: error, userId: req.userId }, 'Create recruiter dashboard job error');
     res.status(500).json({ error: 'Failed to create job' });
   }
 });

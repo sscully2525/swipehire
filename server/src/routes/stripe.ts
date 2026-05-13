@@ -205,14 +205,24 @@ router.post('/portal', authenticate, async (req, res) => {
 router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  
+  const isProd = process.env.NODE_ENV === 'production';
+
   let event;
-  
+
+  if (isProd && !endpointSecret) {
+    return res.status(500).send('Webhook signing secret not configured');
+  }
+
   try {
     if (endpointSecret && sig) {
       event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } else if (!isProd) {
+      // Dev convenience: accept unsigned events when no secret is configured.
+      event = typeof req.body === 'string' || Buffer.isBuffer(req.body)
+        ? JSON.parse(req.body.toString())
+        : req.body;
     } else {
-      event = req.body;
+      return res.status(400).send('Missing Stripe signature');
     }
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);

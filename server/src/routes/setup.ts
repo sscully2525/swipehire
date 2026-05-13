@@ -6,12 +6,32 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
+// All /api/setup routes require a setup token (X-Setup-Token header) that matches
+// SETUP_TOKEN env var. In production, refuse if SETUP_TOKEN is unset.
+const requireSetupToken = (req: Request, res: Response, next: NextFunction) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const expected = process.env.SETUP_TOKEN;
+  if (isProd && !expected) {
+    return res.status(503).json({ error: 'Setup endpoints disabled (SETUP_TOKEN not configured)' });
+  }
+  if (expected) {
+    const provided = req.headers['x-setup-token'];
+    if (provided !== expected) {
+      return res.status(401).json({ error: 'Invalid or missing setup token' });
+    }
+  }
+  // In non-prod with no token set, allow (dev convenience)
+  next();
+};
+
+router.use(requireSetupToken);
+
 const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'No token provided' });
   try {
     const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
+    (req as any).userId = decoded.userId;
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid token' });
@@ -19,8 +39,10 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
 };
 
 const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  const result = await query('SELECT role FROM users WHERE id = $1', [req.userId]);
-  if (result.rows.length === 0 || result.rows[0].role !== 'admin') {
+  const userId = (req as any).userId;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const result = await query('SELECT role FROM users WHERE id = $1', [userId]);
+  if (result.rows[0]?.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
@@ -299,7 +321,7 @@ router.get('/admin-stats', authenticate, requireAdmin, async (req, res) => {
 router.post('/clear-swipes', devOnly, authenticate, async (req, res) => {
   try {
     const { userId } = req.body;
-    const targetId = userId || req.userId;
+    const targetId = userId || (req as any).userId;
     await query('DELETE FROM swipes WHERE user_id = $1', [targetId]);
     res.json({ message: 'Swipes cleared' });
   } catch (error) {

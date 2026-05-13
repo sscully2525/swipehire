@@ -221,7 +221,7 @@ router.get('/me', async (req, res) => {
       email: user.email,
       firstName: user.first_name,
       lastName: user.last_name,
-      role: user.role,
+      role: (user as any).role,
       title: user.title,
       dailySwipes: user.daily_swipes,
       subscriptionTier: user.subscription_tier,

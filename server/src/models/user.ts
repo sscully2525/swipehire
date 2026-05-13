@@ -4,8 +4,11 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { redis } from '../index';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
+// In production, server bootstrap (src/index.ts) refuses to start if these
+// are missing or look like placeholders. Defaults are only used in dev/test.
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret-do-not-use-in-prod';
+const JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET || 'dev-only-refresh-secret-do-not-use-in-prod';
 
 export interface User {
   id: string;

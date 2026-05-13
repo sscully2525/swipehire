@@ -9,7 +9,7 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   if (!token) return res.status(401).json({ error: 'No token provided' });
   try {
     const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
+    (req as any).userId = decoded.userId;
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid token' });
@@ -17,8 +17,10 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
 };
 
 const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  const result = await query('SELECT role FROM users WHERE id = $1', [req.userId]);
-  if (result.rows.length === 0 || result.rows[0].role !== 'admin') {
+  const userId = (req as any).userId;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const result = await query('SELECT role FROM users WHERE id = $1', [userId]);
+  if (result.rows[0]?.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
@@ -163,12 +165,13 @@ router.put('/company-coordinates/:startupId', authenticate, async (req: Request,
   try {
     const { lat, lng, address } = req.body;
     const { startupId } = req.params;
+    const userId = (req as any).userId;
 
     const ownerCheck = await query(
       `SELECT s.id FROM startups s
        LEFT JOIN users u ON u.id = $1
        WHERE s.id = $2 AND (s.created_by = $1 OR u.role = 'admin')`,
-      [req.userId, startupId]
+      [userId, startupId]
     );
 
     if (ownerCheck.rows.length === 0) {

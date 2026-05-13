@@ -31,6 +31,37 @@ import { initSocketHandlers } from './socket/handlers';
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Fail fast on insecure config in production
+if (isProduction) {
+  const placeholders = [
+    'CHANGE_THIS_TO_A_RANDOM_32_CHAR_STRING',
+    'CHANGE_THIS_TO_A_DIFFERENT_RANDOM_32_CHAR_STRING',
+    'your-secret-key-change-in-production',
+    'your-refresh-secret',
+    'change_me_to_a_long_random_string',
+    'change_me_to_a_different_long_random_string',
+  ];
+  const jwtSecret = process.env.JWT_SECRET;
+  const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
+  if (!jwtSecret || jwtSecret.length < 32 || placeholders.includes(jwtSecret)) {
+    // eslint-disable-next-line no-console
+    console.error('FATAL: JWT_SECRET must be set to a strong random value (>= 32 chars) in production.');
+    process.exit(1);
+  }
+  if (!jwtRefreshSecret || jwtRefreshSecret.length < 32 || placeholders.includes(jwtRefreshSecret)) {
+    // eslint-disable-next-line no-console
+    console.error('FATAL: JWT_REFRESH_SECRET must be set to a strong random value (>= 32 chars) in production.');
+    process.exit(1);
+  }
+  if (!process.env.CLIENT_URL) {
+    // eslint-disable-next-line no-console
+    console.error('FATAL: CLIENT_URL must be set in production (used for CORS).');
+    process.exit(1);
+  }
+}
+
 // Logger
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
@@ -62,14 +93,16 @@ const httpServer = createServer(app);
 
 const PORT = process.env.PORT || 3001;
 
+// Build CORS allowlist (comma-separated CLIENT_URL supported).
 // In production, client and server are the same origin — no cross-origin requests.
 // In dev, the Vite proxy handles /api, so CORS is only needed for direct access.
-const allowedOrigins = process.env.CLIENT_URL
-  ? [process.env.CLIENT_URL]
-  : ['http://localhost:3000', 'http://localhost:3001'];
+const corsOrigins = (process.env.CLIENT_URL || 'http://localhost:3000,http://localhost:3001')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 const io = new Server(httpServer, {
-  cors: { origin: allowedOrigins, credentials: true }
+  cors: { origin: corsOrigins, credentials: true }
 });
 
 // Security middleware
@@ -79,7 +112,7 @@ app.use(helmet({
 }));
 app.use(compression());
 
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(cors({ origin: corsOrigins, credentials: true }));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -96,8 +129,8 @@ const authLimiter = rateLimit({
   message: 'Too many auth attempts'
 });
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Stripe webhook needs raw body
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
@@ -178,19 +211,27 @@ const setupDatabase = async () => {
   try {
     await initDB();
     logger.info('✅ Database initialized');
-    
-    // Check if admin exists
-    const adminResult = await query("SELECT * FROM users WHERE email = 'admin@swipehire.com'");
-    if (adminResult.rows.length === 0) {
-      // Create default admin
-      const id = uuidv4();
-      const passwordHash = await bcrypt.hash('admin123', 12);
-      await query(
-        `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, onboarding_completed)
-         VALUES ($1, $2, $3, $4, $5, 'admin', true, true)`,
-        [id, 'admin@swipehire.com', passwordHash, 'Admin', 'User']
+
+    // Optionally seed a default admin in non-production environments only,
+    // or when explicitly requested via SEED_DEFAULT_ADMIN=true.
+    // The default password can be overridden with DEFAULT_ADMIN_PASSWORD.
+    const shouldSeedAdmin =
+      process.env.SEED_DEFAULT_ADMIN === 'true' || !isProduction;
+    if (shouldSeedAdmin) {
+      const adminResult = await query(
+        "SELECT id FROM users WHERE email = 'admin@swipehire.com'"
       );
-      logger.info('✅ Default admin created: admin@swipehire.com / admin123');
+      if (adminResult.rows.length === 0) {
+        const id = uuidv4();
+        const defaultPwd = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+        const passwordHash = await bcrypt.hash(defaultPwd, 12);
+        await query(
+          `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, onboarding_completed)
+           VALUES ($1, $2, $3, $4, $5, 'admin', true, true)`,
+          [id, 'admin@swipehire.com', passwordHash, 'Admin', 'User']
+        );
+        logger.warn('⚠️  Default admin seeded: admin@swipehire.com (change password immediately)');
+      }
     }
   } catch (err) {
     logger.error('❌ Database setup failed:', err);

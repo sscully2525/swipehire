@@ -19,12 +19,20 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
+// Check if user is admin (looks up role from DB)
 const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  const result = await query('SELECT role FROM users WHERE id = $1', [req.userId]);
-  if (result.rows.length === 0 || result.rows[0].role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
+  try {
+    const userId = (req as any).userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const result = await query('SELECT role FROM users WHERE id = $1', [userId]);
+    const role = result.rows[0]?.role;
+    if (role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+  } catch (err) {
+    return res.status(500).json({ error: 'Auth check failed' });
   }
-  next();
 };
 
 router.get('/stats', authenticate, requireAdmin, async (req: Request, res: Response) => {

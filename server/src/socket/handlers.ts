@@ -45,6 +45,11 @@ export const initSocketHandlers = (io: Server) => {
   });
 
   io.on('connection', (socket: AuthenticatedSocket) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`User ${socket.userId} connected`);
+    }
+
+    // Join user's room for notifications
     socket.join(`user:${socket.userId}`);
 
     if (socket.userId) {
@@ -178,6 +183,9 @@ export const initSocketHandlers = (io: Server) => {
     });
 
     socket.on('disconnect', async () => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`User ${socket.userId} disconnected`);
+      }
       if (socket.userId) {
         await redis.del(`socket:${socket.userId}`);
       }

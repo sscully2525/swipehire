@@ -28,7 +28,9 @@ export const useSocket = () => {
     const socket = socketRef.current;
 
     socket.on('connect', () => {
-      console.log('Socket connected');
+      if (import.meta.env.DEV) {
+        console.log('Socket connected');
+      }
     });
 
     socket.on('notification', (data) => {

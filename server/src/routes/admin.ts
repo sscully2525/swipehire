@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { query } from '../db';
 import { verifyAccessToken } from '../models/user';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -75,7 +76,7 @@ router.get('/stats', authenticate, requireAdmin, async (req: Request, res: Respo
       startups: startupStats.rows[0]
     });
   } catch (error) {
-    console.error('Admin stats error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Admin stats error');
     res.status(500).json({ error: 'Failed to fetch admin stats' });
   }
 });

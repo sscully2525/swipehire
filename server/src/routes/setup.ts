@@ -139,8 +139,8 @@ async function seedCompanies(): Promise<number> {
     try {
       const startupId = uuidv4();
       await query(
-        `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by, is_demo, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE, 'demo')
          ON CONFLICT (slug) DO NOTHING`,
         [startupId, company.name, company.slug, company.description, company.mission,
          company.stage, company.location, company.size, company.website,
@@ -250,7 +250,7 @@ router.post('/seed-admin-company', devOnly, async (req, res) => {
 });
 
 // Seed sample companies — idempotent, available to all users (read-only risk)
-router.get('/seed-sample-companies', async (req, res) => {
+router.get('/seed-sample-companies', devOnly, authenticate, requireAdmin, async (req, res) => {
   try {
     const existingCount = await query('SELECT COUNT(*) as count FROM startups');
     if (parseInt(existingCount.rows[0].count) > 1) {

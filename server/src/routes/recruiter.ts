@@ -9,6 +9,15 @@ import {
 
 const router = Router();
 
+const slugifyCompany = (name: string): string =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'company';
+
+
 // All recruiter routes require an authenticated user with the recruiter
 // (or admin) role. Previously these were authenticated-only, so any
 // candidate could hit them.
@@ -37,16 +46,21 @@ router.post('/companies', async (req, res) => {
   try {
     const { name, description, mission, stage, location, size, website } = req.body;
 
+    if (!name || !description || !stage) {
+      return res.status(400).json({ error: 'name, description, and stage are required' });
+    }
+
     const id = uuidv4();
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const baseSlug = slugifyCompany(name);
+    const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
     await query(
-      `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, created_by, is_demo, source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE, 'user')`,
       [id, name, slug, description, mission, stage, location, size, website, req.userId]
     );
 
-    res.status(201).json({ id, message: 'Company created' });
+    res.status(201).json({ id, slug, message: 'Company created' });
   } catch {
     res.status(500).json({ error: 'Failed to create company' });
   }
@@ -220,8 +234,7 @@ router.post('/candidates/:userId/like', async (req, res) => {
     );
 
     res.json({ message: 'Match created', matchId });
-  } catch (err) {
-    console.error('Like candidate error:', err);
+  } catch {
     res.status(500).json({ error: 'Failed to like candidate' });
   }
 });

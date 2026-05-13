@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 import {
   createUser,
   findUserByEmail,
@@ -12,11 +14,34 @@ import {
   storeRefreshToken,
   invalidateRefreshToken,
 } from '../models/user';
-import { query } from '../db';
+import { query, getClient } from '../db';
 import { logger } from '../index';
 import { validatePassword } from '../utils/password';
 
 const router = Router();
+
+
+const slugifyCompany = (name: string): string =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'company';
+
+const reserveUniqueCompanySlug = async (
+  client: Awaited<ReturnType<typeof getClient>>,
+  companyName: string,
+): Promise<string> => {
+  const base = slugifyCompany(companyName);
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    const existing = await client.query('SELECT 1 FROM startups WHERE slug = $1', [candidate]);
+    if (existing.rows.length === 0) return candidate;
+  }
+  return `${base}-${Date.now().toString(36)}`;
+};
+
 
 // Validation middleware
 const handleValidationErrors = (req: Request, res: Response, next: NextFunction) => {
@@ -186,24 +211,53 @@ router.post('/recruiter/signup', [
       return res.status(409).json({ error: 'Email already registered' });
     }
     
-    // Create user with recruiter role
-    const user = await createUser(email, password, firstName, lastName, 'recruiter');
-    
-    // Create company
-    const { query } = await import('../db');
-    const { v4: uuidv4 } = await import('uuid');
-    const startupId = uuidv4();
-    
-    await query(
-      `INSERT INTO startups (id, name, slug, description, stage, created_by, verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [startupId, companyName, companyName.toLowerCase().replace(/\s+/g, '-'), `${companyName} - A growing company`, 'Seed', user.id, false]
-    );
-    
+    const client = await getClient();
+    let user: {
+      id: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+    };
+    let startupId: string;
+    let companySlug: string;
+
+    try {
+      await client.query('BEGIN');
+
+      // Create user with recruiter role in the same transaction as company
+      // creation so a company insert failure never leaves a stranded recruiter
+      // account that cannot finish onboarding.
+      const userId = uuidv4();
+      const passwordHash = await bcrypt.hash(password, 12);
+      const userResult = await client.query(
+        `INSERT INTO users (id, email, password_hash, first_name, last_name, daily_swipes, role, onboarding_completed)
+         VALUES ($1, $2, $3, $4, $5, 0, 'recruiter', true)
+         RETURNING id, email, first_name, last_name`,
+        [userId, email, passwordHash, firstName, lastName]
+      );
+      user = userResult.rows[0];
+
+      startupId = uuidv4();
+      companySlug = await reserveUniqueCompanySlug(client, companyName);
+
+      await client.query(
+        `INSERT INTO startups (id, name, slug, description, stage, created_by, verified, is_demo, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, 'user')`,
+        [startupId, companyName, companySlug, `${companyName} is hiring on SwipeHire`, 'Seed', user.id, false]
+      );
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
     const { accessToken, refreshToken } = generateTokens(user.id);
     await storeRefreshToken(user.id, refreshToken);
     
-    logger.info('Recruiter signed up', { userId: user.id, email, companyId: startupId });
+    logger.info('Recruiter signed up', { userId: user.id, email, companyId: startupId, companySlug });
     
     res.status(201).json({
       accessToken,
@@ -214,7 +268,8 @@ router.post('/recruiter/signup', [
         firstName: user.first_name,
         lastName: user.last_name,
         role: 'recruiter',
-        companyId: startupId
+        companyId: startupId,
+        companySlug
       }
     });
   } catch (error) {

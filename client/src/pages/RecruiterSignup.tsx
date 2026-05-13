@@ -5,6 +5,16 @@ import { useAuthStore } from '../store/auth';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
+
+const getPasswordStrength = (password: string) => {
+  const checks = [password.length >= 10, /[a-z]/.test(password), /[A-Z]/.test(password), /\d/.test(password), /[^A-Za-z0-9]/.test(password)];
+  const score = checks.filter(Boolean).length;
+  if (score >= 5) return { score, label: 'Strong', color: 'bg-emerald-500', text: 'text-emerald-700' };
+  if (score >= 4) return { score, label: 'Good', color: 'bg-blue-500', text: 'text-blue-700' };
+  if (score >= 3) return { score, label: 'Fair', color: 'bg-amber-500', text: 'text-amber-700' };
+  return { score, label: 'Weak', color: 'bg-red-500', text: 'text-red-700' };
+};
+
 function RecruiterSignup() {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -16,11 +26,12 @@ function RecruiterSignup() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const passwordStrength = getPasswordStrength(formData.password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+    if (passwordStrength.score < 4) {
+      toast.error('Use a stronger password: 10+ chars and at least 3 of lower/upper/digit/symbol');
       return;
     }
     setIsLoading(true);
@@ -73,6 +84,7 @@ function RecruiterSignup() {
               <label className="block text-sm font-medium text-gray-700">Company name</label>
               <input
                 type="text"
+                name="companyName"
                 required
                 value={formData.companyName}
                 onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
@@ -86,6 +98,7 @@ function RecruiterSignup() {
                 <label className="block text-sm font-medium text-gray-700">First name</label>
                 <input
                   type="text"
+                  name="firstName"
                   required
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -96,6 +109,7 @@ function RecruiterSignup() {
                 <label className="block text-sm font-medium text-gray-700">Last name</label>
                 <input
                   type="text"
+                  name="lastName"
                   required
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -108,6 +122,7 @@ function RecruiterSignup() {
               <label className="block text-sm font-medium text-gray-700">Work email</label>
               <input
                 type="email"
+                name="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -120,12 +135,23 @@ function RecruiterSignup() {
               <label className="block text-sm font-medium text-gray-700">Password</label>
               <input
                 type="password"
+                name="password"
                 required
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Min 8 characters"
+                placeholder="10+ chars, mix upper/lower, number or symbol"
               />
+              {formData.password && (
+                <div className="mt-2">
+                  <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                    <div className={`h-full ${passwordStrength.color} transition-all`} style={{ width: `${Math.min(100, passwordStrength.score * 20)}%` }} />
+                  </div>
+                  <p className={`mt-1 text-xs font-medium ${passwordStrength.text}`}>
+                    {passwordStrength.label} password — required for hiring accounts.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

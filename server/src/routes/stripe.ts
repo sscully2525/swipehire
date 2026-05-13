@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { query } from '../db';
 import { findUserById } from '../models/user';
 import { verifyAccessToken } from '../models/user';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -93,7 +94,7 @@ router.get('/subscription', authenticate, async (req, res) => {
       cancelAtPeriodEnd: sub.cancel_at_period_end
     });
   } catch (error) {
-    console.error('Get subscription error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Get subscription error');
     res.status(500).json({ error: 'Failed to fetch subscription' });
   }
 });
@@ -170,7 +171,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     
     res.json({ sessionId: session.id, url: session.url });
   } catch (error) {
-    console.error('Checkout error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Stripe checkout error');
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
 });
@@ -196,7 +197,7 @@ router.post('/portal', authenticate, async (req, res) => {
     
     res.json({ url: session.url });
   } catch (error) {
-    console.error('Portal error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Stripe portal error');
     res.status(500).json({ error: 'Failed to create portal session' });
   }
 });
@@ -225,7 +226,7 @@ router.post('/webhook', async (req, res) => {
       return res.status(400).send('Missing Stripe signature');
     }
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
+    logger.warn({ err: err.message }, 'Webhook signature verification failed');
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
   
@@ -315,7 +316,7 @@ router.post('/webhook', async (req, res) => {
     
     res.json({ received: true });
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    logger.error({ err: error }, 'Webhook processing error');
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });

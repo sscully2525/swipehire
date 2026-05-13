@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { findUserById, updateUser } from '../models/user';
 import { body } from 'express-validator';
 import { verifyAccessToken } from '../models/user';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     }
     res.json(user);
   } catch (error) {
-    console.error('Get profile error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Get profile error');
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
@@ -64,7 +65,7 @@ router.put('/', authenticate, [
     const user = await updateUser(req.userId!, updates);
     res.json(user);
   } catch (error) {
-    console.error('Update profile error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Update profile error');
     res.status(500).json({ error: 'Failed to update profile' });
   }
 });

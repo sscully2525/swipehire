@@ -11,8 +11,7 @@ interface Endpoint {
 
 const ENDPOINTS: Endpoint[] = [
   { method: 'GET', path: '/api/health', description: 'Health check' },
-  { method: 'GET', path: '/api/setup/seed-sample-companies', description: 'Seed 50 sample companies' },
-  { method: 'GET', path: '/api/setup/admin-stats', description: 'Get admin stats' },
+  { method: 'GET', path: '/api/setup/admin-stats', description: 'Get admin stats (requires X-Setup-Token server-side)' },
   { method: 'GET', path: '/api/startups', description: 'Get jobs for swiping' },
   { method: 'GET', path: '/api/matches', description: 'Get user matches' },
   { method: 'GET', path: '/api/profile', description: 'Get user profile' },
@@ -22,9 +21,9 @@ const ENDPOINTS: Endpoint[] = [
   { method: 'GET', path: '/api/notifications/unread-count', description: 'Get unread notification count' },
   { method: 'GET', path: '/api/swipes/remaining', description: 'Get remaining swipes' },
   { method: 'GET', path: '/api/recruiter/dashboard', description: 'Get recruiter dashboard' },
-  { method: 'POST', path: '/api/setup/clear-swipes', description: 'Clear all swipes (test)', body: { userId: '' } },
   { method: 'POST', path: '/api/auth/login', description: 'Login', body: { email: '', password: '' } },
-  { method: 'POST', path: '/api/auth/register', description: 'Register', body: { email: '', password: '', firstName: '', lastName: '' } },
+  { method: 'POST', path: '/api/auth/signup', description: 'Candidate signup', body: { email: '', password: '', firstName: '', lastName: '' } },
+  { method: 'POST', path: '/api/auth/recruiter/signup', description: 'Hiring account signup', body: { email: '', password: '', firstName: '', lastName: '', companyName: '' } },
   { method: 'POST', path: '/api/swipes', description: 'Create swipe', body: { jobId: '', direction: 'right' } },
   { method: 'POST', path: '/api/stripe/checkout', description: 'Create checkout session', body: { planId: 'pro' } },
 ];

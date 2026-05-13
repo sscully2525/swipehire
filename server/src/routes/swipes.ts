@@ -9,6 +9,7 @@ import {
 import { findUserById, getSwipeLimit } from '../models/user';
 import { calculateMatchScore } from '../services/ai';
 import { authenticate } from '../middleware/auth';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -67,7 +68,7 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
       stats
     });
   } catch (err) {
-    console.error('Swipe error:', err);
+    logger.error({ err, userId: req.userId }, 'Swipe error');
     res.status(500).json({ error: 'Failed to record swipe' });
   }
 });
@@ -88,7 +89,7 @@ router.get('/remaining', authenticate, async (req: Request, res: Response) => {
       tier: user.subscription_tier
     });
   } catch (error) {
-    console.error('Get remaining swipes error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Get remaining swipes error');
     res.status(500).json({ error: 'Failed to get remaining swipes' });
   }
 });

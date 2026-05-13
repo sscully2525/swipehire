@@ -53,7 +53,7 @@ router.get('/:id/messages', authenticate, async (req: Request, res: Response) =>
 
     res.json(messages);
   } catch (error) {
-    console.error('Get messages error:', error);
+    logger.error({ err: error, userId: req.userId, matchId: req.params.id }, 'Get match messages error');
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });

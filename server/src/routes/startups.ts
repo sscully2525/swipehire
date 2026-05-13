@@ -39,14 +39,16 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 router.get('/filters', authenticate, async (req: Request, res: Response) => {
   try {
     // Get available filters
-    const stagesResult = await query('SELECT DISTINCT stage FROM startups ORDER BY stage');
+    const stagesResult = await query('SELECT DISTINCT stage FROM startups WHERE COALESCE(is_demo, false) = false ORDER BY stage');
     const techResult = await query(`
       SELECT DISTINCT unnest(tech_stack) as tech 
-      FROM jobs 
-      WHERE tech_stack IS NOT NULL 
+      FROM jobs j
+      JOIN startups s ON j.startup_id = s.id
+      WHERE tech_stack IS NOT NULL
+        AND COALESCE(s.is_demo, false) = false
       ORDER BY tech
     `);
-    const locationsResult = await query('SELECT DISTINCT location FROM startups WHERE location IS NOT NULL ORDER BY location');
+    const locationsResult = await query('SELECT DISTINCT location FROM startups WHERE location IS NOT NULL AND COALESCE(is_demo, false) = false ORDER BY location');
     
     res.json({
       stages: stagesResult.rows.map(r => r.stage),

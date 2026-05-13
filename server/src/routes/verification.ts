@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db';
 import { verifyAccessToken } from '../models/user';
 import crypto from 'crypto';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.post('/linkedin/generate-code', authenticate, async (req, res) => {
       verifyUrl: `/api/verify/linkedin/check/${userId}`
     });
   } catch (error) {
-    console.error('Generate LinkedIn code error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Generate LinkedIn code error');
     res.status(500).json({ error: 'Failed to generate verification code' });
   }
 });
@@ -72,7 +73,7 @@ router.post('/linkedin/verify', authenticate, async (req, res) => {
       note: 'Our team will verify your LinkedIn profile within 24 hours'
     });
   } catch (error) {
-    console.error('LinkedIn verification error:', error);
+    logger.error({ err: error, userId: req.userId }, 'LinkedIn verification error');
     res.status(500).json({ error: 'Failed to submit verification' });
   }
 });
@@ -96,7 +97,7 @@ router.post('/identity/upload', authenticate, async (req, res) => {
       note: 'Your document will be reviewed within 24-48 hours'
     });
   } catch (error) {
-    console.error('Identity upload error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Identity upload error');
     res.status(500).json({ error: 'Failed to upload document' });
   }
 });
@@ -141,7 +142,7 @@ router.post('/company/verify', authenticate, async (req, res) => {
       ]
     });
   } catch (error) {
-    console.error('Company verification error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Company verification error');
     res.status(500).json({ error: 'Failed to submit company verification' });
   }
 });
@@ -172,7 +173,7 @@ router.get('/status', authenticate, async (req, res) => {
       pendingRequests: pendingRequests.rows
     });
   } catch (error) {
-    console.error('Get verification status error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Get verification status error');
     res.status(500).json({ error: 'Failed to get verification status' });
   }
 });
@@ -246,7 +247,7 @@ router.post('/admin/review', authenticate, async (req, res) => {
     
     res.json({ message: `Verification ${action} successfully` });
   } catch (error) {
-    console.error('Admin review error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Admin review error');
     res.status(500).json({ error: 'Failed to process review' });
   }
 });

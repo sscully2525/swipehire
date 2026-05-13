@@ -86,6 +86,7 @@ router.get('/jobs-by-location', async (req: Request, res: Response) => {
         FROM jobs j
         JOIN startups s ON j.startup_id = s.id
         WHERE j.status = 'active'
+          AND COALESCE(s.is_demo, false) = false
           AND s.lat IS NOT NULL AND s.lng IS NOT NULL
           AND (3959 * acos(LEAST(1, cos(radians($1)) * cos(radians(s.lat)) *
                cos(radians(s.lng) - radians($2)) + sin(radians($1)) * sin(radians(s.lat))))) <= $3
@@ -100,6 +101,7 @@ router.get('/jobs-by-location', async (req: Request, res: Response) => {
         FROM jobs j
         JOIN startups s ON j.startup_id = s.id
         WHERE j.status = 'active'
+          AND COALESCE(s.is_demo, false) = false
       `;
     }
 
@@ -132,6 +134,7 @@ router.get('/companies-map', async (req: Request, res: Response) => {
       FROM startups s
       LEFT JOIN jobs j ON s.id = j.startup_id AND j.status = 'active'
       WHERE s.lat IS NOT NULL AND s.lng IS NOT NULL
+        AND COALESCE(s.is_demo, false) = false
     `;
 
     if (bounds) {
@@ -218,6 +221,7 @@ router.get('/popular-locations', async (req: Request, res: Response) => {
       FROM startups s
       JOIN jobs j ON s.id = j.startup_id
       WHERE j.status = 'active'
+        AND COALESCE(s.is_demo, false) = false
       GROUP BY s.location
       ORDER BY job_count DESC
       LIMIT 20

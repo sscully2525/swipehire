@@ -81,7 +81,7 @@ export const createJob = async (job: Partial<Job>): Promise<Job> => {
 };
 
 export const getJobsForSwiping = async (userId: string, filters?: any): Promise<Job[]> => {
-  const cacheKey = `jobs:${userId}:${JSON.stringify(filters || {})}`;
+  const cacheKey = `jobs:v2:${userId}:${JSON.stringify(filters || {})}`;
   const cached = await redis.get(cacheKey);
   
   if (cached) {
@@ -95,6 +95,7 @@ export const getJobsForSwiping = async (userId: string, filters?: any): Promise<
     FROM jobs j
     JOIN startups s ON j.startup_id = s.id
     WHERE j.status = 'active'
+      AND COALESCE(s.is_demo, false) = false
       AND j.id NOT IN (
         SELECT job_id FROM swipes WHERE user_id = $1
       )
@@ -140,7 +141,8 @@ export const getJobById = async (id: string): Promise<Job | null> => {
     `SELECT j.*, s.* 
      FROM jobs j
      JOIN startups s ON j.startup_id = s.id
-     WHERE j.id = $1`,
+     WHERE j.id = $1
+       AND COALESCE(s.is_demo, false) = false`,
     [id]
   );
   
@@ -436,13 +438,13 @@ export const seedStartupsAndJobs = async () => {
     const slug = startupInfo.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     
     await query(
-      `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, 
-                            website, founded_year, funding_amount, verified, featured)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO startups (id, name, slug, description, mission, stage, location, size,
+                            website, founded_year, funding_amount, verified, featured, is_demo, source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, 'demo')
        ON CONFLICT (slug) DO NOTHING`,
       [startupId, startupInfo.name, slug, startupInfo.description, startupInfo.mission,
        startupInfo.stage, startupInfo.location, startupInfo.size, startupInfo.website,
-       startupInfo.founded_year, startupInfo.funding_amount, startupInfo.verified || false, 
+       startupInfo.founded_year, startupInfo.funding_amount, startupInfo.verified || false,
        Math.random() > 0.7] // 30% featured
     );
     

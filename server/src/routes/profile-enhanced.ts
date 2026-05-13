@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db';
 import { verifyAccessToken } from '../models/user';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -58,7 +59,7 @@ router.get('/full', authenticate, async (req, res) => {
       publications: publicationsResult.rows
     });
   } catch (error) {
-    console.error('Get full profile error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Get full profile error');
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
@@ -77,7 +78,7 @@ router.post('/work-experience', authenticate, async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Add work experience error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Add work experience error');
     res.status(500).json({ error: 'Failed to add work experience' });
   }
 });
@@ -100,7 +101,7 @@ router.put('/work-experience/:id', authenticate, async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update work experience error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Update work experience error');
     res.status(500).json({ error: 'Failed to update work experience' });
   }
 });
@@ -118,7 +119,7 @@ router.delete('/work-experience/:id', authenticate, async (req, res) => {
     
     res.json({ message: 'Work experience deleted' });
   } catch (error) {
-    console.error('Delete work experience error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Delete work experience error');
     res.status(500).json({ error: 'Failed to delete work experience' });
   }
 });
@@ -137,7 +138,7 @@ router.post('/education', authenticate, async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Add education error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Add education error');
     res.status(500).json({ error: 'Failed to add education' });
   }
 });
@@ -160,7 +161,7 @@ router.put('/education/:id', authenticate, async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update education error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Update education error');
     res.status(500).json({ error: 'Failed to update education' });
   }
 });
@@ -178,7 +179,7 @@ router.delete('/education/:id', authenticate, async (req, res) => {
     
     res.json({ message: 'Education deleted' });
   } catch (error) {
-    console.error('Delete education error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Delete education error');
     res.status(500).json({ error: 'Failed to delete education' });
   }
 });
@@ -196,7 +197,7 @@ router.post('/skills', authenticate, async (req, res) => {
     
     res.json({ message: 'Skill added' });
   } catch (error) {
-    console.error('Add skill error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Add skill error');
     res.status(500).json({ error: 'Failed to add skill' });
   }
 });
@@ -210,7 +211,7 @@ router.delete('/skills/:skill', authenticate, async (req, res) => {
     
     res.json({ message: 'Skill removed' });
   } catch (error) {
-    console.error('Remove skill error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Remove skill error');
     res.status(500).json({ error: 'Failed to remove skill' });
   }
 });
@@ -228,7 +229,7 @@ router.post('/resume', authenticate, async (req, res) => {
     
     res.json({ message: 'Resume updated' });
   } catch (error) {
-    console.error('Update resume error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Update resume error');
     res.status(500).json({ error: 'Failed to update resume' });
   }
 });
@@ -257,7 +258,7 @@ router.put('/basic', authenticate, async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update basic profile error:', error);
+    logger.error({ err: error, userId: req.userId }, 'Update basic profile error');
     res.status(500).json({ error: 'Failed to update profile' });
   }
 });

@@ -19,3 +19,9 @@
 ## Verification
 - Server lint ✅
 - Server build ✅
+- Server tests 17/17 ✅
+- Client lint/build ✅
+- Production smoke: recruiter signup 201 ✅
+- Production smoke: `POST /api/recruiter/companies/:id/jobs` 201 ✅
+- Production smoke: legacy `POST /api/recruiter/jobs` 201 ✅
+- Production smoke: company job list returned both created jobs with normalized requirements arrays ✅

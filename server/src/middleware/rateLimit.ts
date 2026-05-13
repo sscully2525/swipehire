@@ -77,11 +77,15 @@ export const loginHourlyLimiter = rateLimit(
   }),
 );
 
-/** Registration: 3/hour/IP — discourages bulk-signup bots. */
+/**
+ * Registration: 20/hour/IP — still slows bulk-signup bots, but does not lock
+ * out real users after a few validation retries or our production smoke tests.
+ * v2 prefix intentionally resets the old overly-strict 3/hour counters.
+ */
 export const registerLimiter = rateLimit(
-  baseOptions('rl:register:', {
+  baseOptions('rl:register:v2:', {
     windowMs: 60 * 60 * 1000,
-    max: 3,
+    max: 20,
     message: { error: 'Too many sign-up attempts. Try again later.' },
   }),
 );

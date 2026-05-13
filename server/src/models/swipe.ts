@@ -35,26 +35,32 @@ export interface Match {
 }
 
 /**
- * Best-effort cache invalidation for `jobs:<userId>:*` keys. `DEL` does
+ * Best-effort cache invalidation for candidate job-feed keys. `DEL` does
  * not accept glob patterns, so we SCAN and delete in batches. Errors
  * are swallowed — caching is non-critical.
+ *
+ * Keep this version-tolerant: feed cache keys have changed from
+ * `jobs:<userId>:...` to `jobs:vN:<userId>:...`; invalidation must clear
+ * both, otherwise a refresh can resurrect a job the candidate already swiped.
  */
 const invalidateJobsCacheForUser = async (userId: string): Promise<void> => {
   try {
-    const prefix = `jobs:${userId}:`;
-    let cursor = 0;
-    do {
-      // node-redis v4: scan returns { cursor, keys }
-      const res = await (redis as any).scan(cursor, {
-        MATCH: `${prefix}*`,
-        COUNT: 100,
-      });
-      cursor = typeof res.cursor === 'number' ? res.cursor : Number(res.cursor);
-      const keys: string[] = res.keys || [];
-      if (keys.length) {
-        await redis.del(keys);
-      }
-    } while (cursor !== 0);
+    const patterns = [`jobs:${userId}:*`, `jobs:v*:${userId}:*`];
+    for (const pattern of patterns) {
+      let cursor = 0;
+      do {
+        // node-redis v4: scan returns { cursor, keys }
+        const res = await (redis as any).scan(cursor, {
+          MATCH: pattern,
+          COUNT: 100,
+        });
+        cursor = typeof res.cursor === 'number' ? res.cursor : Number(res.cursor);
+        const keys: string[] = res.keys || [];
+        if (keys.length) {
+          await redis.del(keys);
+        }
+      } while (cursor !== 0);
+    }
   } catch {
     /* cache best-effort */
   }

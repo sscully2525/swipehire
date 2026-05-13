@@ -232,7 +232,7 @@ function Matches() {
   );
 
   const ChatPanel = selectedMatch ? (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[calc(100vh-180px)] min-h-[500px]">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col" style={{ height: 'calc(100svh - 180px)', minHeight: '500px' }}>
       {/* Chat Header */}
       <div className="p-4 border-b border-gray-200 flex items-center space-x-3">
         <button
@@ -344,7 +344,7 @@ function Matches() {
       </div>
     </div>
   ) : (
-    <div className="hidden md:flex bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 h-[calc(100vh-180px)] min-h-[500px] items-center justify-center">
+    <div className="hidden md:flex bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 items-center justify-center" style={{ height: 'calc(100svh - 180px)', minHeight: '500px' }}>
       <div className="text-center text-gray-400">
         <svg className="w-16 h-16 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />

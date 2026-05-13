@@ -17,6 +17,7 @@
 
   * {
     @apply box-border;
+    -webkit-tap-highlight-color: transparent;
   }
 
   html {

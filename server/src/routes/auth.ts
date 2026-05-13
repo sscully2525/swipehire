@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
+import axios from 'axios';
 import {
   createUser,
   findUserByEmail,
@@ -11,6 +12,7 @@ import {
   storeRefreshToken,
   invalidateRefreshToken
 } from '../models/user';
+import { query } from '../db';
 import { logger } from '../index';
 
 const router = Router();
@@ -53,6 +55,7 @@ router.post('/signup', [
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
+        role: 'candidate',
         dailySwipes: user.daily_swipes,
         subscriptionTier: user.subscription_tier,
         onboardingCompleted: user.onboarding_completed
@@ -95,6 +98,7 @@ router.post('/login', [
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
+        role: user.role || 'candidate',
         title: user.title,
         dailySwipes: user.daily_swipes,
         subscriptionTier: user.subscription_tier,
@@ -225,6 +229,75 @@ router.get('/me', async (req, res) => {
     });
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// LinkedIn OAuth - redirect to LinkedIn authorization
+router.get('/linkedin', (req: Request, res: Response) => {
+  const clientId = process.env.LINKEDIN_CLIENT_ID;
+  if (!clientId) {
+    return res.status(503).json({ error: 'LinkedIn OAuth not configured' });
+  }
+  const redirectUri = process.env.LINKEDIN_REDIRECT_URI || `${process.env.CLIENT_URL || 'http://localhost:3001'}/api/auth/linkedin/callback`;
+  const scope = 'openid profile email';
+  const state = Math.random().toString(36).substring(2);
+  const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`;
+  res.redirect(url);
+});
+
+// LinkedIn OAuth callback
+router.get('/linkedin/callback', async (req: Request, res: Response) => {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.redirect(`${clientUrl}/login?error=linkedin_failed`);
+    }
+
+    const clientId = process.env.LINKEDIN_CLIENT_ID;
+    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+    const redirectUri = process.env.LINKEDIN_REDIRECT_URI || `${process.env.CLIENT_URL || 'http://localhost:3001'}/api/auth/linkedin/callback`;
+
+    // Exchange code for token
+    const tokenRes = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', null, {
+      params: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: clientId, client_secret: clientSecret },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+
+    const accessToken = tokenRes.data.access_token;
+
+    // Get LinkedIn user info (OpenID Connect userinfo endpoint)
+    const profileRes = await axios.get('https://api.linkedin.com/v2/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const { sub: linkedinId, email, given_name: firstName, family_name: lastName } = profileRes.data;
+    if (!email) {
+      return res.redirect(`${clientUrl}/login?error=linkedin_no_email`);
+    }
+
+    // Find or create user
+    let user = await findUserByEmail(email);
+    if (!user) {
+      user = await createUser(email, Math.random().toString(36), firstName || 'LinkedIn', lastName || 'User');
+    }
+
+    // Mark LinkedIn as verified and invalidate cache
+    await query('UPDATE users SET linkedin_verified = true, linkedin_url = $1 WHERE id = $2',
+      [`https://www.linkedin.com/in/${linkedinId}`, user.id]);
+    const { redis } = await import('../index');
+    await redis.del(`user:${user.id}`);
+
+    const tokens = generateTokens(user.id);
+    await storeRefreshToken(user.id, tokens.refreshToken);
+
+    logger.info('LinkedIn OAuth login', { userId: user.id, email });
+
+    // Redirect to client with tokens
+    res.redirect(`${clientUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&role=${user.role || 'candidate'}`);
+  } catch (error) {
+    logger.error('LinkedIn callback error', { error });
+    res.redirect(`${clientUrl}/login?error=linkedin_failed`);
   }
 });
 

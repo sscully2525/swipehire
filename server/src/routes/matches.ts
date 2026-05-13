@@ -77,19 +77,20 @@ router.put('/:id/status', authenticate, [
 ], async (req: Request, res: Response) => {
   try {
     const match = await getMatchById(req.params.id);
-    
-    if (!match || match.user_id !== req.userId!) {
-      return res.status(404).json({ error: 'Match not found' });
+    if (!match) return res.status(404).json({ error: 'Match not found' });
+
+    const isCandidate = match.user_id === req.userId!;
+    if (!isCandidate) {
+      // Check if recruiter owns the company
+      const { query: dbQuery } = await import('../db');
+      const ownerCheck = await dbQuery('SELECT created_by FROM startups WHERE id = $1', [match.startup_id]);
+      if (ownerCheck.rows.length === 0 || ownerCheck.rows[0].created_by !== req.userId!) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
     }
-    
+
     const { status, scheduledCallAt, callLink, notes } = req.body;
-    
-    await updateMatchStatus(req.params.id, status, {
-      scheduledCallAt,
-      callLink,
-      notes
-    });
-    
+    await updateMatchStatus(req.params.id, status, { scheduledCallAt, callLink, notes });
     res.json({ message: 'Status updated successfully' });
   } catch (error) {
     console.error('Update status error:', error);

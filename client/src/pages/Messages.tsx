@@ -25,7 +25,7 @@ interface Match {
 function Messages() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuthStore();
+  useAuthStore();
 
   useEffect(() => {
     fetchMatches();

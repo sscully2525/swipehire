@@ -1,25 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { getUserMatches, getMatchById, updateMatchStatus } from '../models/swipe';
 import { getMessagesByMatch, markMessagesAsRead } from '../models/chat';
-import { verifyAccessToken } from '../models/user';
 import { body } from 'express-validator';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
-
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  
-  try {
-    const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
@@ -34,14 +19,14 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 router.get('/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const match = await getMatchById(req.params.id);
-    
+
     if (!match || match.user_id !== req.userId!) {
       return res.status(404).json({ error: 'Match not found' });
     }
-    
+
     // Get recent messages
     const messages = await getMessagesByMatch(req.params.id, 20);
-    
+
     res.json({ ...match, messages });
   } catch (error) {
     console.error('Get match error:', error);
@@ -52,19 +37,19 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
 router.get('/:id/messages', authenticate, async (req: Request, res: Response) => {
   try {
     const match = await getMatchById(req.params.id);
-    
+
     if (!match || match.user_id !== req.userId!) {
       return res.status(404).json({ error: 'Match not found' });
     }
-    
+
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
-    
+
     const messages = await getMessagesByMatch(req.params.id, limit, offset);
-    
+
     // Mark messages as read
     await markMessagesAsRead(req.params.id, 'company');
-    
+
     res.json(messages);
   } catch (error) {
     console.error('Get messages error:', error);
@@ -98,30 +83,41 @@ router.put('/:id/status', authenticate, [
   }
 });
 
-// Unmatch - remove match for both sides
+// Unmatch — remove match for both sides and notify the recruiter user.
 router.delete('/:id', authenticate, async (req: Request, res: Response) => {
   try {
     const { query } = await import('../db');
     const match = await getMatchById(req.params.id);
-    
+
     if (!match || match.user_id !== req.userId!) {
       return res.status(404).json({ error: 'Match not found' });
     }
-    
-    // Create notification for the other party
-    await query(
-      `INSERT INTO notifications (user_id, type, title, message, data)
-       VALUES ($1, 'match_removed', 'Match Removed', $2, $3)`,
-      [
-        match.startup_id,
-        'A candidate has unmatched with your company',
-        JSON.stringify({ matchId: req.params.id, jobId: match.job_id })
-      ]
+
+    // Look up the recruiter's user id from the startup. Previously this
+    // route inserted `match.startup_id` into `notifications.user_id`,
+    // which violates the FK (and is just plain wrong — startup_id is a
+    // startup row, not a user). (audit 🔴)
+    const recruiterRow = await query(
+      'SELECT created_by FROM startups WHERE id = $1',
+      [match.startup_id]
     );
-    
+    const recruiterUserId: string | null = recruiterRow.rows[0]?.created_by || null;
+
+    if (recruiterUserId) {
+      await query(
+        `INSERT INTO notifications (user_id, type, title, message, data)
+         VALUES ($1, 'match_removed', 'Match Removed', $2, $3)`,
+        [
+          recruiterUserId,
+          'A candidate has unmatched with your company',
+          JSON.stringify({ matchId: req.params.id, jobId: match.job_id }),
+        ]
+      );
+    }
+
     // Delete the match
     await query('DELETE FROM matches WHERE id = $1', [req.params.id]);
-    
+
     res.json({ message: 'Match removed successfully' });
   } catch (error) {
     console.error('Unmatch error:', error);

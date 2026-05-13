@@ -30,7 +30,7 @@ const requireAdmin = async (req: Request, res: Response, next: NextFunction) => 
       return res.status(403).json({ error: 'Admin access required' });
     }
     next();
-  } catch (err) {
+  } catch {
     return res.status(500).json({ error: 'Auth check failed' });
   }
 };
@@ -94,7 +94,7 @@ router.get('/users', authenticate, requireAdmin, async (req, res) => {
     `, [limit, offset]);
     
     res.json(result.rows);
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });

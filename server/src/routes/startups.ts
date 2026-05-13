@@ -1,26 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { query } from '../db';
 import { getJobsForSwiping, getJobById, incrementJobViews, seedStartupsAndJobs } from '../models/startup';
-import { verifyAccessToken } from '../models/user';
 import { calculateMatchScore } from '../services/ai';
-import { redis } from '../index';
+import { authenticate, requireAdmin } from '../middleware/auth';
 
 const router = Router();
-
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  
-  try {
-    const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
@@ -68,7 +52,7 @@ router.get('/filters', authenticate, async (req: Request, res: Response) => {
       techStack: techResult.rows.map(r => r.tech),
       locations: locationsResult.rows.map(r => r.location)
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to fetch filters' });
   }
 });
@@ -93,8 +77,14 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
   }
 });
 
-router.post('/seed', async (req: Request, res: Response) => {
+// Seed startup/job fixtures. Locked down behind admin auth AND blocked
+// in production — this was previously unauthenticated and reachable
+// from the public internet. (audit 🔴)
+router.post('/seed', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Seeding is disabled in production' });
+    }
     await seedStartupsAndJobs();
     res.json({ message: 'Startups and jobs seeded successfully' });
   } catch (error) {

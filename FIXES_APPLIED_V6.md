@@ -15,3 +15,4 @@
 - Server lint ✅
 - Server build ✅
 - Server tests 18/18 ✅
+- Production smoke: created recruiter/company/job + candidate, fetched feed twice to populate cache, swiped right, fetched feed again; swiped job disappeared ✅

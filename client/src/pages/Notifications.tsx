@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { formatDistanceToNow } from 'date-fns';
 import api from '../lib/api';
-import { useAuthStore } from '../store/auth';
-import { Bell, CheckCircle, MessageSquare, Heart, Briefcase } from 'lucide-react';
+import { useNotificationStore } from '../store/auth';
+import { Bell, CheckCircle, MessageSquare, Heart, Briefcase, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Notification {
@@ -15,11 +16,18 @@ interface Notification {
   created_at: string;
 }
 
+const TYPE_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'match', label: 'Matches' },
+  { id: 'message', label: 'Messages' },
+  { id: 'job', label: 'Jobs' },
+];
+
 function Notifications() {
-  useAuthStore();
+  const { setUnreadCount } = useNotificationStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     fetchNotifications();
@@ -27,12 +35,13 @@ function Notifications() {
 
   const fetchNotifications = async () => {
     try {
-      const response = await api.get('/notifications');
-      setNotifications(response.data);
-      
-      const unreadRes = await api.get('/notifications/unread-count');
-      setUnreadCount(unreadRes.data.count);
-    } catch (err) {
+      const [notifRes, countRes] = await Promise.all([
+        api.get('/notifications'),
+        api.get('/notifications/unread-count'),
+      ]);
+      setNotifications(notifRes.data);
+      setUnreadCount(countRes.data.count);
+    } catch {
       toast.error('Failed to load notifications');
     } finally {
       setLoading(false);
@@ -42,10 +51,10 @@ function Notifications() {
   const markAsRead = async (id: string) => {
     try {
       await api.put(`/notifications/${id}/read`);
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, read: true } : n)
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setUnreadCount(notifications.filter((n) => !n.read && n.id !== id).length);
     } catch {
       toast.error('Failed to mark notification as read');
     }
@@ -54,87 +63,131 @@ function Notifications() {
   const markAllAsRead = async () => {
     try {
       await api.put('/notifications/read-all');
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch {
-      toast.error('Failed to mark all notifications as read');
+      toast.error('Failed to mark all as read');
     }
   };
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'match':
-        return <Heart className="w-5 h-5 text-red-500" />;
-      case 'message':
-        return <MessageSquare className="w-5 h-5 text-blue-500" />;
-      case 'job':
-        return <Briefcase className="w-5 h-5 text-green-500" />;
-      default:
-        return <Bell className="w-5 h-5 text-gray-500" />;
+      case 'match': return <Heart className="w-4 h-4 text-rose-500" />;
+      case 'message': return <MessageSquare className="w-4 h-4 text-blue-500" />;
+      case 'job': return <Briefcase className="w-4 h-4 text-emerald-500" />;
+      default: return <Bell className="w-4 h-4 text-slate-400" />;
     }
   };
+
+  const getIconBg = (type: string) => {
+    switch (type) {
+      case 'match': return 'bg-rose-50';
+      case 'message': return 'bg-blue-50';
+      case 'job': return 'bg-emerald-50';
+      default: return 'bg-slate-100';
+    }
+  };
+
+  const filtered = filter === 'all' ? notifications : notifications.filter((n) => n.type === filter);
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0A66C2]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-[#191919]">Notifications</h1>
+    <div className="max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
+          {unreadCount > 0 && (
+            <p className="text-sm text-slate-500 mt-0.5">{unreadCount} unread</p>
+          )}
+        </div>
         {unreadCount > 0 && (
-          <button 
+          <button
             onClick={markAllAsRead}
-            className="btn-secondary text-sm"
+            className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
           >
-            Mark all as read
+            <Check className="w-4 h-4" />
+            Mark all read
           </button>
         )}
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl w-fit">
+        {TYPE_FILTERS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              filter === f.id
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Notification list */}
       <div className="space-y-2">
-        {notifications.length === 0 ? (
-          <div className="text-center py-12 card">
-            <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No notifications yet</p>
-          </div>
+        {filtered.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16 bg-white rounded-2xl border border-slate-100"
+          >
+            <Bell className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+            <p className="text-slate-400 font-medium">No notifications here</p>
+          </motion.div>
         ) : (
-          notifications.map((notification) => (
-            <motion.div
-              key={notification.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className={`card p-4 flex items-start space-x-4 ${
-                !notification.read ? 'bg-blue-50 border-blue-200' : ''
-              }`}
-            >
-              <div className="p-2 bg-white rounded-lg shadow-sm">
-                {getIcon(notification.type)}
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-semibold text-[#191919]">{notification.title}</h3>
-                  <span className="text-xs text-[#8C8C8C]">
-                    {new Date(notification.created_at).toLocaleDateString()}
-                  </span>
+          <AnimatePresence initial={false}>
+            {filtered.map((n) => (
+              <motion.div
+                key={n.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0 }}
+                className={`flex items-start gap-4 p-4 rounded-2xl border transition-all ${
+                  !n.read
+                    ? 'bg-blue-50 border-blue-100'
+                    : 'bg-white border-slate-100'
+                }`}
+              >
+                <div className={`p-2.5 rounded-xl flex-shrink-0 ${getIconBg(n.type)}`}>
+                  {getIcon(n.type)}
                 </div>
-                <p className="text-sm text-[#666666] mt-1">{notification.message}</p>
-              </div>
-              {!notification.read && (
-                <button
-                  onClick={() => markAsRead(notification.id)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                  title="Mark as read"
-                >
-                  <CheckCircle className="w-5 h-5 text-[#0A66C2]" />
-                </button>
-              )}
-            </motion.div>
-          ))
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className={`text-sm font-semibold ${!n.read ? 'text-slate-900' : 'text-slate-700'}`}>
+                      {n.title}
+                    </p>
+                    <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">
+                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>
+                </div>
+                {!n.read && (
+                  <button
+                    onClick={() => markAsRead(n.id)}
+                    className="flex-shrink-0 p-1.5 rounded-lg hover:bg-white/80 transition-colors"
+                    title="Mark as read"
+                  >
+                    <CheckCircle className="w-4 h-4 text-blue-500" />
+                  </button>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         )}
       </div>
     </div>

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/auth';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
-import { 
+import {
   Briefcase, GraduationCap, Plus, Edit2, Camera, FileText,
-  MapPin, X, Globe
+  MapPin, X, Globe, Check
 } from 'lucide-react';
 
 interface WorkExperience {
@@ -53,6 +53,9 @@ function Profile() {
   const [showAddSection, setShowAddSection] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [openToWork, setOpenToWork] = useState(false);
+  const [skillInput, setSkillInput] = useState('');
+  const [showSkillInput, setShowSkillInput] = useState(false);
+  const skillInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -98,13 +101,22 @@ function Profile() {
   };
 
   const handleAddSkill = async (skill: string) => {
+    const trimmed = skill.trim();
+    if (!trimmed) return;
     try {
-      await api.post('/profile-enhanced/skills', { skill });
+      await api.post('/profile-enhanced/skills', { skill: trimmed });
       toast.success('Skill added');
+      setSkillInput('');
+      setShowSkillInput(false);
       fetchProfile();
-    } catch (err) {
+    } catch {
       toast.error('Failed to add skill');
     }
+  };
+
+  const handleSkillKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleAddSkill(skillInput); }
+    if (e.key === 'Escape') { setShowSkillInput(false); setSkillInput(''); }
   };
 
   const handleAddWorkExperience = async (data: any) => {
@@ -372,7 +384,7 @@ function Profile() {
           </motion.div>
 
           {/* Skills Section */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
@@ -380,31 +392,45 @@ function Profile() {
           >
             <div className="flex justify-between items-center mb-4">
               <h2 className="section-title">Skills</h2>
-              <button 
-                onClick={() => {
-                  const skill = prompt('Enter a skill:');
-                  if (skill) handleAddSkill(skill);
-                }}
+              <button
+                onClick={() => { setShowSkillInput(true); setTimeout(() => skillInputRef.current?.focus(), 50); }}
                 className="p-2 hover:bg-gray-100 rounded-full"
               >
                 <Plus className="w-5 h-5 text-gray-600" />
               </button>
             </div>
-            
+
             <div className="flex flex-wrap gap-2">
               {(userData?.skills || []).map((skill: string) => (
-                <span key={skill} className="badge-primary">
-                  {skill}
-                </span>
+                <span key={skill} className="badge-primary">{skill}</span>
               ))}
-              {(!userData?.skills || userData.skills.length === 0) && (
+
+              {/* Inline chip input */}
+              {showSkillInput && (
+                <div className="flex items-center gap-1 px-3 py-1 bg-blue-50 border-2 border-blue-300 rounded-full">
+                  <input
+                    ref={skillInputRef}
+                    type="text"
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyDown={handleSkillKeyDown}
+                    placeholder="Type a skill…"
+                    className="bg-transparent text-sm text-blue-900 placeholder-blue-400 outline-none w-28"
+                  />
+                  <button onClick={() => handleAddSkill(skillInput)} className="text-blue-600 hover:text-blue-800">
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => { setShowSkillInput(false); setSkillInput(''); }} className="text-blue-400 hover:text-blue-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {(!userData?.skills || userData.skills.length === 0) && !showSkillInput && (
                 <div className="text-center py-4 w-full">
                   <p className="text-gray-400 italic mb-2">No skills added yet</p>
-                  <button 
-                    onClick={() => {
-                      const skill = prompt('Enter a skill:');
-                      if (skill) handleAddSkill(skill);
-                    }}
+                  <button
+                    onClick={() => { setShowSkillInput(true); setTimeout(() => skillInputRef.current?.focus(), 50); }}
                     className="text-[#0A66C2] font-medium hover:underline"
                   >
                     Add skills

@@ -207,16 +207,37 @@ export const createMatch = async (userId: string, jobId: string): Promise<Match>
 
 export const getUserMatches = async (userId: string): Promise<any[]> => {
   const result = await query(
-    `SELECT m.*, s.name as startup_name, s.logo_url as startup_logo, 
+    `SELECT m.*, s.name as startup_name, s.logo_url as startup_logo,
             s.slug as startup_slug, s.verified as startup_verified,
-            j.title as job_title, j.salary_min, j.salary_max, 
+            j.title as job_title, j.salary_min, j.salary_max,
             j.location as job_location, j.remote_allowed,
-            (SELECT COUNT(*) FROM chat_messages WHERE match_id = m.id AND sender_type = 'company' AND read_at IS NULL) as unread_count
+            COALESCE(unread.unread_count, 0)::int as unread_count,
+            CASE WHEN last_msg.id IS NULL THEN NULL ELSE json_build_object(
+              'id', last_msg.id,
+              'content', last_msg.content,
+              'created_at', last_msg.created_at,
+              'sender_type', last_msg.sender_type,
+              'message_type', last_msg.message_type
+            ) END as last_message
      FROM matches m
      JOIN startups s ON m.startup_id = s.id
      JOIN jobs j ON m.job_id = j.id
+     LEFT JOIN LATERAL (
+       SELECT cm.id, cm.content, cm.created_at, cm.sender_type, cm.message_type
+       FROM chat_messages cm
+       WHERE cm.match_id = m.id
+       ORDER BY cm.created_at DESC
+       LIMIT 1
+     ) last_msg ON true
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*) as unread_count
+       FROM chat_messages cm
+       WHERE cm.match_id = m.id
+         AND cm.sender_type = 'company'
+         AND cm.read_at IS NULL
+     ) unread ON true
      WHERE m.user_id = $1
-     ORDER BY m.created_at DESC`,
+     ORDER BY COALESCE(last_msg.created_at, m.created_at) DESC`,
     [userId]
   );
   return result.rows;

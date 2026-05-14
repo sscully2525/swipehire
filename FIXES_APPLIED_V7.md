@@ -15,3 +15,4 @@
 - Server lint ✅
 - Server build ✅
 - Server tests 18/18 ✅
+- Production smoke: created recruiter/job/candidate/match, sent candidate message, `/api/matches` returned `last_message` and the inbox-visible conversation ✅

@@ -55,7 +55,8 @@ router.get('/filters', authenticate, async (req: Request, res: Response) => {
       techStack: techResult.rows.map(r => r.tech),
       locations: locationsResult.rows.map(r => r.location)
     });
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Get startup filters error');
     res.status(500).json({ error: 'Failed to fetch filters' });
   }
 });

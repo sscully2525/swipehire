@@ -1,25 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { findUserById, updateUser } from '../models/user';
 import { body } from 'express-validator';
-import { verifyAccessToken } from '../models/user';
 import { logger } from '../logger';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
-
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  
-  try {
-    const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
@@ -74,7 +59,8 @@ router.post('/complete-onboarding', authenticate, async (req: Request, res: Resp
   try {
     const user = await updateUser(req.userId!, { onboarding_completed: true });
     res.json(user);
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Complete onboarding error');
     res.status(500).json({ error: 'Failed to complete onboarding' });
   }
 });

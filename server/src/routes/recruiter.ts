@@ -107,7 +107,8 @@ router.get('/companies', async (req, res) => {
       [req.userId]
     );
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Recruiter get companies error');
     res.status(500).json({ error: 'Failed to fetch companies' });
   }
 });
@@ -132,7 +133,8 @@ router.post('/companies', async (req, res) => {
     );
 
     res.status(201).json({ id, slug, message: 'Company created' });
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Recruiter create company error');
     res.status(500).json({ error: 'Failed to create company' });
   }
 });
@@ -159,7 +161,8 @@ router.get('/companies/:id', async (req, res) => {
       ...companyResult.rows[0],
       jobs: jobsResult.rows,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId, companyId: req.params.id }, 'Recruiter get company error');
     res.status(500).json({ error: 'Failed to fetch company' });
   }
 });
@@ -235,7 +238,8 @@ router.get('/candidates', async (req, res) => {
       [req.userId]
     );
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Recruiter get candidates error');
     res.status(500).json({ error: 'Failed to fetch candidates' });
   }
 });
@@ -258,7 +262,8 @@ router.get('/matches', async (req, res) => {
       [req.userId]
     );
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Recruiter get matches error');
     res.status(500).json({ error: 'Failed to fetch matches' });
   }
 });
@@ -315,7 +320,8 @@ router.post('/candidates/:userId/like', async (req, res) => {
     );
 
     res.json({ message: 'Match created', matchId });
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId, candidateId: req.params.userId }, 'Recruiter like candidate error');
     res.status(500).json({ error: 'Failed to like candidate' });
   }
 });
@@ -339,7 +345,8 @@ router.post('/candidates/:userId/pass', async (req, res) => {
     await createRecruiterSwipe(req.userId!, req.params.userId, jobId, 'left');
 
     res.json({ message: 'Candidate passed' });
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId, candidateId: req.params.userId }, 'Recruiter pass candidate error');
     res.status(500).json({ error: 'Failed to pass on candidate' });
   }
 });
@@ -397,7 +404,8 @@ router.get('/dashboard', async (req, res) => {
       },
       recentActivity: recentActivity.rows,
     });
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Recruiter dashboard error');
     res.status(500).json({ error: 'Failed to fetch dashboard' });
   }
 });

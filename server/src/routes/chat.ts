@@ -1,25 +1,13 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { getMessagesByMatch, createMessage, markMessagesAsRead } from '../models/chat';
 import { getMatchById } from '../models/swipe';
-import { verifyAccessToken } from '../models/user';
 import { createNotification } from '../models/notification';
 import { query } from '../db';
 import { body, validationResult } from 'express-validator';
 import { logger } from '../logger';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
-
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-  try {
-    const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 // Resolve whether the requesting user has access to this match
 // Returns { match, senderType } or throws

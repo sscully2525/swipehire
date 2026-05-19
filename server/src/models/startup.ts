@@ -1,6 +1,7 @@
 import { query } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { redis } from '../index';
+import { logger } from '../logger';
 
 export interface Startup {
   id: string;
@@ -471,5 +472,5 @@ export const seedStartupsAndJobs = async () => {
     }
   }
   
-  console.log('✅ Seeded startups and jobs with rich data');
+  logger.info('Seeded startups and jobs with rich data');
 };

@@ -132,6 +132,11 @@ function Login() {
 
           <div className="text-center space-y-2">
             <p className="text-sm text-gray-600">
+              <Link to="/forgot-password" className="font-medium text-gray-500 hover:text-gray-700">
+                Forgot password?
+              </Link>
+            </p>
+            <p className="text-sm text-gray-600">
               Looking for a job?{' '}
               <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
                 Candidate sign up

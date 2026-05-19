@@ -1,21 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { verifyAccessToken, getSwipeLimit } from '../models/user';
+import { Router, Request, Response } from 'express';
+import { getSwipeLimit } from '../models/user';
 import { query } from '../db';
 import { logger } from '../logger';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
-
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-  try {
-    const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 const PLANS = [
   {
@@ -106,7 +95,8 @@ router.post('/subscribe', authenticate, async (req: Request, res: Response) => {
       checkoutPath: '/api/stripe/checkout',
       stripeAvailable: !!process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('dummy')
     });
-  } catch {
+  } catch (err) {
+    logger.error({ err }, 'Initiate subscription error');
     res.status(500).json({ error: 'Failed to initiate subscription' });
   }
 });

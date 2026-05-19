@@ -1,31 +1,9 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { query } from '../db';
-import { verifyAccessToken } from '../models/user';
 import { logger } from '../logger';
+import { authenticate, requireAdmin } from '../middleware/auth';
 
 const router = Router();
-
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-  try {
-    const decoded = verifyAccessToken(token);
-    (req as any).userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
-const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  const userId = (req as any).userId;
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-  const result = await query('SELECT role FROM users WHERE id = $1', [userId]);
-  if (result.rows[0]?.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-};
 
 // Mock geocoding for common cities
 const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
@@ -116,7 +94,7 @@ router.get('/jobs-by-location', async (req: Request, res: Response) => {
     const result = await query(sql, params);
     res.json({ jobs: result.rows, total: result.rows.length, page: parseInt(page), limit: parseInt(limit) });
   } catch (error) {
-    logger.error({ err: error, userId: (req as any).userId }, 'Jobs by location error');
+    logger.error({ err: error, userId: req.userId }, 'Jobs by location error');
     res.status(500).json({ error: 'Failed to fetch jobs by location' });
   }
 });
@@ -159,7 +137,7 @@ router.get('/companies-map', async (req: Request, res: Response) => {
     const result = await query(sql, params);
     res.json(result.rows);
   } catch (error) {
-    logger.error({ err: error, userId: (req as any).userId }, 'Companies map error');
+    logger.error({ err: error, userId: req.userId }, 'Companies map error');
     res.status(500).json({ error: 'Failed to fetch companies for map' });
   }
 });
@@ -169,7 +147,7 @@ router.put('/company-coordinates/:startupId', authenticate, async (req: Request,
   try {
     const { lat, lng, address } = req.body;
     const { startupId } = req.params;
-    const userId = (req as any).userId;
+    const userId = req.userId;
 
     const ownerCheck = await query(
       `SELECT s.id FROM startups s
@@ -188,7 +166,7 @@ router.put('/company-coordinates/:startupId', authenticate, async (req: Request,
     );
     res.json({ message: 'Coordinates updated successfully' });
   } catch (error) {
-    logger.error({ err: error, userId: (req as any).userId }, 'Update coordinates error');
+    logger.error({ err: error, userId: req.userId }, 'Update coordinates error');
     res.status(500).json({ error: 'Failed to update coordinates' });
   }
 });
@@ -207,7 +185,7 @@ router.post('/geocode-all', authenticate, requireAdmin, async (req: Request, res
     }
     res.json({ message: `Geocoded ${results.length} companies`, results });
   } catch (error) {
-    logger.error({ err: error, userId: (req as any).userId }, 'Geocode all error');
+    logger.error({ err: error, userId: req.userId }, 'Geocode all error');
     res.status(500).json({ error: 'Failed to geocode companies' });
   }
 });

@@ -117,7 +117,7 @@ function RecruiterDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-[#666666]">Active Jobs</p>
-              <p className="text-2xl font-bold text-[#191919]">{stats?.activeJobs || 0}</p>
+              <p className="text-2xl font-bold text-[#191919]">{stats?.stats?.jobs ?? jobs.length}</p>
             </div>
             <Briefcase className="w-8 h-8 text-[#0A66C2]" />
           </div>
@@ -132,7 +132,7 @@ function RecruiterDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-[#666666]">Total Matches</p>
-              <p className="text-2xl font-bold text-[#191919]">{stats?.totalMatches || 0}</p>
+              <p className="text-2xl font-bold text-[#191919]">{stats?.stats?.matches ?? 0}</p>
             </div>
             <Users className="w-8 h-8 text-green-600" />
           </div>
@@ -146,8 +146,8 @@ function RecruiterDashboard() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#666666]">Messages</p>
-              <p className="text-2xl font-bold text-[#191919]">{stats?.unreadMessages || 0}</p>
+              <p className="text-sm text-[#666666]">Interested Candidates</p>
+              <p className="text-2xl font-bold text-[#191919]">{stats?.stats?.interestedCandidates ?? 0}</p>
             </div>
             <MessageSquare className="w-8 h-8 text-purple-600" />
           </div>
@@ -161,8 +161,8 @@ function RecruiterDashboard() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#666666]">Profile Views</p>
-              <p className="text-2xl font-bold text-[#191919]">{stats?.profileViews || 0}</p>
+              <p className="text-sm text-[#666666]">Companies</p>
+              <p className="text-2xl font-bold text-[#191919]">{stats?.stats?.companies ?? 0}</p>
             </div>
             <TrendingUp className="w-8 h-8 text-orange-600" />
           </div>

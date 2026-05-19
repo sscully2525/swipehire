@@ -34,19 +34,19 @@ export const calculateMatchScore = async (
     const job = jobResult.rows[0];
     
     let score = 0;
-    let factors = 0;
-    
+    let maxPossible = 0;
+
     // Skill match (40% weight)
     if (user.skills && job.tech_stack) {
       const userSkills = user.skills.map((s: string) => s.toLowerCase());
       const jobSkills = job.tech_stack.map((s: string) => s.toLowerCase());
-      const matches = jobSkills.filter((s: string) => 
+      const matches = jobSkills.filter((s: string) =>
         userSkills.some((us: string) => us.includes(s) || s.includes(us))
       );
       score += (matches.length / Math.max(jobSkills.length, 1)) * 0.4;
-      factors++;
+      maxPossible += 0.4;
     }
-    
+
     // Experience level match (20% weight)
     if (user.years_experience && job.experience_level) {
       const expLevels: Record<string, number> = {
@@ -54,15 +54,14 @@ export const calculateMatchScore = async (
       };
       const requiredExp = expLevels[job.experience_level] || 3;
       const userExp = user.years_experience;
-      
       if (userExp >= requiredExp) {
         score += 0.2;
       } else if (userExp >= requiredExp * 0.7) {
         score += 0.1;
       }
-      factors++;
+      maxPossible += 0.2;
     }
-    
+
     // Salary alignment (20% weight)
     if (user.preferred_salary_min && job.salary_max) {
       if (job.salary_max >= user.preferred_salary_min) {
@@ -70,9 +69,9 @@ export const calculateMatchScore = async (
       } else if (job.salary_max >= user.preferred_salary_min * 0.9) {
         score += 0.1;
       }
-      factors++;
+      maxPossible += 0.2;
     }
-    
+
     // Remote preference (10% weight)
     if (user.remote_preference !== undefined && job.remote_allowed !== undefined) {
       if (user.remote_preference === 'remote' && job.remote_allowed) {
@@ -82,21 +81,21 @@ export const calculateMatchScore = async (
       } else if (user.remote_preference === 'hybrid') {
         score += 0.05;
       }
-      factors++;
+      maxPossible += 0.1;
     }
-    
-    // Stage preference boost (10% weight)
+
+    // Stage preference (10% weight)
     const stageScores: Record<string, number> = {
-      'Seed': 0.08, 'Series A': 0.1, 'Series B': 0.08, 
+      'Seed': 0.08, 'Series A': 0.1, 'Series B': 0.08,
       'Series C': 0.05, 'Series D+': 0.03
     };
     if (job.stage && stageScores[job.stage]) {
       score += stageScores[job.stage];
-      factors++;
+      maxPossible += 0.1;
     }
-    
-    // Normalize score
-    const finalScore = factors > 0 ? Math.min(score / (factors * 0.25), 1) : 0.5;
+
+    // Normalize against the max achievable given available data fields
+    const finalScore = maxPossible > 0 ? Math.min(score / maxPossible, 1) : 0.5;
     
     return Math.round(finalScore * 100) / 100;
   } catch (err) {

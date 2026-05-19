@@ -2,29 +2,14 @@ import { Router } from 'express';
 import Stripe from 'stripe';
 import { query } from '../db';
 import { findUserById } from '../models/user';
-import { verifyAccessToken } from '../models/user';
 import { logger } from '../logger';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2023-10-16',
 });
-
-const authenticate = (req: any, res: any, next: any) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  
-  try {
-    const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 // Subscription plans
 interface Plan {

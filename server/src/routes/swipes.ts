@@ -98,7 +98,8 @@ router.get('/stats', authenticate, async (req: Request, res: Response) => {
   try {
     const stats = await getSwipeStats(req.userId!);
     res.json(stats);
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Get swipe stats error');
     res.status(500).json({ error: 'Failed to get swipe stats' });
   }
 });

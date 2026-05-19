@@ -1,25 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { query } from '../db';
-import { verifyAccessToken } from '../models/user';
 import { getRecommendations } from '../services/ai';
 import { logger } from '../logger';
+import { authenticate } from '../middleware/auth';
 
 const router = Router();
-
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  
-  try {
-    const decoded = verifyAccessToken(token);
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 router.get('/dashboard', authenticate, async (req: Request, res: Response) => {
   try {
@@ -94,7 +79,7 @@ router.get('/candidate', authenticate, async (req: Request, res: Response) => {
       query(`SELECT COUNT(*)::int as matches FROM matches WHERE user_id = $1`, [req.userId!]),
       query(
         `SELECT COUNT(*)::int as messages
-         FROM messages msg
+         FROM chat_messages msg
          JOIN matches m ON m.id = msg.match_id
          WHERE m.user_id = $1`,
         [req.userId!]

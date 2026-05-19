@@ -49,10 +49,14 @@ function Candidates() {
     const candidate = candidates[currentIndex];
     
     try {
-      await api.post(`/recruiter/candidates/${candidate.id}/like`, {
+      const response = await api.post(`/recruiter/candidates/${candidate.id}/like`, {
         jobId: candidate.job_id
       });
-      toast.success('It\'s a match! 🎉');
+      if (response.data.matchId) {
+        toast.success('It\'s a match! 🎉');
+      } else {
+        toast.success('Interest recorded!');
+      }
       setCurrentIndex(prev => prev + 1);
     } catch {
       toast.error('Failed to like candidate');

@@ -17,6 +17,8 @@ const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const RecruiterSignup = lazy(() => import('./pages/RecruiterSignup'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Swipe = lazy(() => import('./pages/Swipe'));
 const Matches = lazy(() => import('./pages/Matches'));
@@ -112,6 +114,8 @@ function App() {
             element={isAuthenticated ? <Navigate to={defaultRedirect} /> : <RecruiterSignup />}
           />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Onboarding (candidates only) */}
           <Route
@@ -147,7 +151,7 @@ function App() {
             <Route path="/profile" element={isAuthenticated && isCandidate ? <Profile /> : <Navigate to={defaultRedirect} />} />
             <Route path="/analytics" element={isAuthenticated && isCandidate ? <Analytics /> : <Navigate to={defaultRedirect} />} />
             <Route path="/subscription" element={isAuthenticated ? <Subscription /> : <Navigate to="/login" />} />
-            <Route path="/api-tester" element={isAuthenticated ? <ApiTester /> : <Navigate to="/login" />} />
+            <Route path="/api-tester" element={isAuthenticated && user?.role === 'admin' ? <ApiTester /> : <Navigate to={defaultRedirect} />} />
             <Route path="/notifications" element={isAuthenticated ? <Notifications /> : <Navigate to="/login" />} />
             <Route path="/work" element={isAuthenticated && isCandidate ? <Work /> : <Navigate to={defaultRedirect} />} />
             <Route path="/messages" element={isAuthenticated && isCandidate ? <Messages /> : <Navigate to={defaultRedirect} />} />

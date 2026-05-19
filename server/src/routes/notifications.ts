@@ -6,6 +6,7 @@ import {
   getUnreadNotificationCount,
 } from '../models/notification';
 import { authenticate } from '../middleware/auth';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -14,7 +15,8 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const notifications = await getUserNotifications(req.userId!, limit);
     res.json(notifications);
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Get notifications error');
     res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 });
@@ -23,7 +25,8 @@ router.get('/unread-count', authenticate, async (req: Request, res: Response) =>
   try {
     const count = await getUnreadNotificationCount(req.userId!);
     res.json({ count });
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Get unread count error');
     res.status(500).json({ error: 'Failed to get unread count' });
   }
 });
@@ -45,7 +48,8 @@ router.put('/:id/read', authenticate, async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Notification not found' });
     }
     res.json({ message: 'Notification marked as read' });
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId, notificationId: req.params.id }, 'Mark notification read error');
     res.status(500).json({ error: 'Failed to mark as read' });
   }
 });
@@ -54,7 +58,8 @@ router.put('/read-all', authenticate, async (req: Request, res: Response) => {
   try {
     await markAllNotificationsAsRead(req.userId!);
     res.json({ message: 'All notifications marked as read' });
-  } catch {
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, 'Mark all notifications read error');
     res.status(500).json({ error: 'Failed to mark all as read' });
   }
 });

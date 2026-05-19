@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../db';
-import { verifyAccessToken } from '../models/user';
+import { verifyAccessToken, generateTokens, storeRefreshToken, findUserByEmail } from '../models/user';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../logger';
 
@@ -328,6 +328,192 @@ router.post('/clear-swipes', devOnly, authenticate, async (req, res) => {
   } catch (error) {
     logger.error({ err: error, userId: (req as any).userId }, 'Clear swipes error');
     res.status(500).json({ error: 'Failed to clear swipes' });
+  }
+});
+
+// ─── Dev-login: instant login without password (dev only) ────────────────────
+router.post('/dev-login', devOnly, async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email required' });
+
+    const user = await findUserByEmail(email);
+    if (!user) return res.status(404).json({ error: `No user with email: ${email}` });
+
+    const tokens = generateTokens(user.id);
+    await storeRefreshToken(user.id, tokens.refreshToken);
+
+    res.json({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: (user as any).role,
+        title: user.title,
+        dailySwipes: user.daily_swipes,
+        subscriptionTier: user.subscription_tier,
+        onboardingCompleted: user.onboarding_completed,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Dev-login error');
+    res.status(500).json({ error: 'Dev login failed' });
+  }
+});
+
+// ─── Nuke + reseed: wipe all users and recreate test accounts ─────────────────
+const TEST_ACCOUNTS = [
+  {
+    email: 'sean@swipehire.com',
+    password: 'admin12345',
+    firstName: 'Sean',
+    lastName: 'Scully',
+    role: 'admin',
+    title: 'Founder & CEO',
+    onboarded: true,
+  },
+  {
+    email: 'recruiter@test.com',
+    password: 'test123456',
+    firstName: 'Alex',
+    lastName: 'Recruiter',
+    role: 'recruiter',
+    title: 'Head of Talent',
+    onboarded: true,
+  },
+  {
+    email: 'alice@test.com',
+    password: 'test123456',
+    firstName: 'Alice',
+    lastName: 'Chen',
+    role: 'candidate',
+    title: 'Senior Full Stack Engineer',
+    onboarded: true,
+    skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'AWS'],
+    yearsExp: 6,
+    salaryMin: 160000,
+    salaryMax: 220000,
+    remote: 'remote',
+    bio: 'Passionate full-stack engineer with 6 years building scalable web apps. Love React and distributed systems.',
+  },
+  {
+    email: 'bob@test.com',
+    password: 'test123456',
+    firstName: 'Bob',
+    lastName: 'Martinez',
+    role: 'candidate',
+    title: 'Machine Learning Engineer',
+    onboarded: true,
+    skills: ['Python', 'PyTorch', 'TensorFlow', 'AWS', 'Kubernetes'],
+    yearsExp: 4,
+    salaryMin: 180000,
+    salaryMax: 260000,
+    remote: 'hybrid',
+    bio: 'ML engineer specializing in NLP and computer vision. Previously at Google Brain.',
+  },
+  {
+    email: 'carol@test.com',
+    password: 'test123456',
+    firstName: 'Carol',
+    lastName: 'Kim',
+    role: 'candidate',
+    title: 'Product Designer',
+    onboarded: true,
+    skills: ['Figma', 'React', 'Design Systems', 'Prototyping', 'User Research'],
+    yearsExp: 5,
+    salaryMin: 130000,
+    salaryMax: 180000,
+    remote: 'remote',
+    bio: 'Product designer who codes. I bridge design and engineering to ship beautiful, functional products.',
+  },
+];
+
+router.post('/nuke-and-seed', devOnly, async (req: Request, res: Response) => {
+  try {
+    logger.warn('🔴 nuke-and-seed called — wiping all user data');
+
+    // Wipe everything user-related (cascade handles dependent tables)
+    await query('DELETE FROM chat_messages');
+    await query('DELETE FROM notifications');
+    await query('DELETE FROM matches');
+    await query('DELETE FROM recruiter_swipes');
+    await query('DELETE FROM swipes');
+    await query('DELETE FROM subscriptions');
+    // Delete non-demo startups
+    await query("DELETE FROM jobs WHERE startup_id IN (SELECT id FROM startups WHERE is_demo = false OR is_demo IS NULL)");
+    await query("DELETE FROM startups WHERE is_demo = false OR is_demo IS NULL");
+    await query('DELETE FROM users');
+
+    const created: any[] = [];
+
+    // Create test users
+    for (const acct of TEST_ACCOUNTS) {
+      const id = uuidv4();
+      const hash = await bcrypt.hash(acct.password, 10);
+      await query(
+        `INSERT INTO users (
+           id, email, password_hash, first_name, last_name, role,
+           title, bio, skills, years_experience,
+           preferred_salary_min, preferred_salary_max,
+           remote_preference, email_verified, onboarding_completed,
+           subscription_tier, daily_swipes
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,true,$14,'free',10)`,
+        [
+          id, acct.email, hash, acct.firstName, acct.lastName, acct.role,
+          acct.title ?? null,
+          (acct as any).bio ?? null,
+          (acct as any).skills ? `{${(acct as any).skills.join(',')}}` : null,
+          (acct as any).yearsExp ?? null,
+          (acct as any).salaryMin ?? null,
+          (acct as any).salaryMax ?? null,
+          (acct as any).remote ?? null,
+          acct.onboarded,
+        ]
+      );
+      created.push({ id, email: acct.email, role: acct.role, password: acct.password });
+    }
+
+    // Create recruiter's company + jobs
+    const recruiterRow = await query("SELECT id FROM users WHERE email = 'recruiter@test.com'");
+    const recruiterId = recruiterRow.rows[0].id;
+    const companyId = uuidv4();
+    await query(
+      `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by, is_demo, source)
+       VALUES ($1,'SwipeHire Labs','swipehire-labs',
+         'The company behind SwipeHire — building the future of recruiting.',
+         'Match every great candidate with their perfect startup.',
+         'Series A','San Francisco, CA','20-50','https://swipehire.com',
+         true, true, $2, false, 'user')`,
+      [companyId, recruiterId]
+    );
+    const testJobs = [
+      { title: 'Senior Full Stack Engineer', desc: 'Lead our web platform development.', smin: 180000, smax: 250000, stack: ['React','Node.js','TypeScript','PostgreSQL','AWS'], level: 'senior' },
+      { title: 'ML Engineer', desc: 'Build our AI matching engine.', smin: 200000, smax: 300000, stack: ['Python','PyTorch','AWS','Kubernetes'], level: 'senior' },
+      { title: 'Product Designer', desc: 'Design the candidate and recruiter experience.', smin: 130000, smax: 180000, stack: ['Figma','React','Design Systems'], level: 'mid' },
+    ];
+    for (const j of testJobs) {
+      await query(
+        `INSERT INTO jobs (id, startup_id, title, description, salary_min, salary_max, location, remote_allowed, tech_stack, experience_level, status)
+         VALUES ($1,$2,$3,$4,$5,$6,'San Francisco, CA',true,$7,$8,'active')`,
+        [uuidv4(), companyId, j.title, j.desc, j.smin, j.smax, `{${j.stack.join(',')}}`, j.level]
+      );
+    }
+
+    // Seed demo companies
+    await seedCompanies();
+
+    logger.info({ accounts: created.map(c => c.email) }, '✅ nuke-and-seed complete');
+    res.json({
+      message: '✅ Database wiped and reseeded',
+      accounts: created,
+      tip: 'Use POST /api/setup/dev-login with { email } for instant login (no password needed)',
+    });
+  } catch (err) {
+    logger.error({ err }, 'nuke-and-seed error');
+    res.status(500).json({ error: 'nuke-and-seed failed', detail: (err as Error).message });
   }
 });
 

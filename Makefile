@@ -134,6 +134,11 @@ db-connect: ## Open psql shell to the local database
 db-seed: ## Seed sample companies (server must be running)
 	@curl -s http://localhost:3001/api/setup/seed-sample-companies | python3 -m json.tool
 
+seed-test: ## Nuke DB and create test accounts + companies (server must be running)
+	@echo -e "$(R)Nuking database and reseeding test data...$(N)"
+	@curl -s -X POST http://localhost:3001/api/setup/nuke-and-seed | python3 -m json.tool
+	@echo -e "$(G)✅  Done. Open http://localhost:3000/dev to log in instantly.$(N)"
+
 # ─────────────────────────────────────────────────────────────
 ##@ 📦  Install
 # ─────────────────────────────────────────────────────────────

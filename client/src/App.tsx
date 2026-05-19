@@ -10,6 +10,10 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import RecruiterLayout from './components/RecruiterLayout';
 
+// Dev-only tools — tree-shaken out of production builds by Vite
+const DevPanel = import.meta.env.DEV ? lazy(() => import('./components/DevPanel')) : null;
+const Dev = lazy(() => import('./pages/Dev'));
+
 // Code-split each page route so the initial bundle stays small.
 // Previously this file imported every page eagerly, producing an
 // 882KB single-chunk bundle (audit 🟠).
@@ -100,6 +104,9 @@ function App() {
       <Toaster position="top-center" />
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
+          {/* Dev-only quick login page */}
+          {import.meta.env.DEV && <Route path="/dev" element={<Dev />} />}
+
           {/* Public routes */}
           <Route
             path="/login"
@@ -182,6 +189,12 @@ function App() {
           <Route path="*" element={<Navigate to={defaultRedirect} />} />
         </Routes>
       </Suspense>
+      {/* Floating dev switcher — only rendered in Vite dev mode */}
+      {import.meta.env.DEV && DevPanel && (
+        <Suspense fallback={null}>
+          <DevPanel />
+        </Suspense>
+      )}
     </ErrorBoundary>
   );
 }

@@ -136,7 +136,9 @@ db-seed: ## Seed sample companies (server must be running)
 
 seed-test: ## Nuke DB and create test accounts + companies (server must be running)
 	@echo -e "$(R)Nuking database and reseeding test data...$(N)"
-	@curl -s -X POST http://localhost:3001/api/setup/nuke-and-seed | python3 -m json.tool
+	@SETUP_TOKEN=$$(grep '^SETUP_TOKEN=' $(SRV)/.env | cut -d= -f2-); \
+	curl -s -X POST http://localhost:3001/api/setup/nuke-and-seed \
+		-H "X-Setup-Token: $$SETUP_TOKEN" | python3 -m json.tool
 	@echo -e "$(G)✅  Done. Open http://localhost:3000/dev to log in instantly.$(N)"
 
 # ─────────────────────────────────────────────────────────────

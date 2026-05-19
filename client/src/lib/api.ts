@@ -18,6 +18,9 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
+    if (import.meta.env.DEV && import.meta.env.VITE_SETUP_TOKEN) {
+      config.headers['X-Setup-Token'] = import.meta.env.VITE_SETUP_TOKEN;
+    }
     const token = useAuthStore.getState().accessToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

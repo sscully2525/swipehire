@@ -81,3 +81,9 @@ playwright/.cache/
 *.seed
 *.pid.lock
 .docker/
+
+# Makefile runtime files
+.server.pid
+.client.pid
+.server.log
+.client.log

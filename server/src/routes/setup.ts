@@ -249,8 +249,8 @@ router.post('/seed-admin-company', devOnly, async (req, res) => {
   }
 });
 
-// Seed sample companies — idempotent, available to all users (read-only risk)
-router.get('/seed-sample-companies', devOnly, authenticate, requireAdmin, async (req, res) => {
+// Seed sample companies — dev-only and protected by the setup token middleware.
+router.get('/seed-sample-companies', devOnly, async (req, res) => {
   try {
     const existingCount = await query('SELECT COUNT(*) as count FROM startups');
     if (parseInt(existingCount.rows[0].count) > 1) {
@@ -264,8 +264,8 @@ router.get('/seed-sample-companies', devOnly, authenticate, requireAdmin, async 
   }
 });
 
-// POST alias for seed — dev/admin only
-router.post('/seed-sample-companies', devOnly, authenticate, requireAdmin, async (req, res) => {
+// POST alias for seed — dev-only and protected by the setup token middleware.
+router.post('/seed-sample-companies', devOnly, async (req, res) => {
   try {
     const createdCount = await seedCompanies();
     res.json({ message: `Successfully created ${createdCount} sample companies with jobs`, count: createdCount });

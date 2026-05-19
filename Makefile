@@ -36,10 +36,10 @@ N := \033[0m
 
 dev: start-db ## Start everything (postgres + redis + server + client)
 	@echo -e "$(Y)Starting server...$(N)"
-	@cd $(SRV) && nohup npm run dev > $(SRV_LOG) 2>&1 & echo $$! > $(SRV_PID)
+	@(cd $(SRV); nohup npm run dev > $(SRV_LOG) 2>&1 < /dev/null & PID=$$!; echo $$PID > $(SRV_PID); disown $$PID 2>/dev/null || true)
 	@sleep 2
 	@echo -e "$(Y)Starting client...$(N)"
-	@cd $(CLI) && nohup npm run dev > $(CLI_LOG) 2>&1 & echo $$! > $(CLI_PID)
+	@(cd $(CLI); nohup npm run dev > $(CLI_LOG) 2>&1 < /dev/null & PID=$$!; echo $$PID > $(CLI_PID); disown $$PID 2>/dev/null || true)
 	@sleep 2
 	@echo -e "$(G)✅  SwipeHire is running$(N)"
 	@echo -e "   Client  →  http://localhost:3000"
@@ -132,13 +132,17 @@ db-connect: ## Open psql shell to the local database
 	@psql postgresql://seanscully@localhost:5432/swipehire
 
 db-seed: ## Seed sample companies (server must be running)
-	@curl -s http://localhost:3001/api/setup/seed-sample-companies | python3 -m json.tool
+	@SETUP_TOKEN=$$(grep '^SETUP_TOKEN=' $(SRV)/.env | cut -d= -f2-); \
+	RESPONSE=$$(curl -fsS -X POST http://localhost:3001/api/setup/seed-sample-companies \
+		-H "X-Setup-Token: $$SETUP_TOKEN"); \
+	echo "$$RESPONSE" | python3 -m json.tool
 
 seed-test: ## Nuke DB and create test accounts + companies (server must be running)
 	@echo -e "$(R)Nuking database and reseeding test data...$(N)"
 	@SETUP_TOKEN=$$(grep '^SETUP_TOKEN=' $(SRV)/.env | cut -d= -f2-); \
-	curl -s -X POST http://localhost:3001/api/setup/nuke-and-seed \
-		-H "X-Setup-Token: $$SETUP_TOKEN" | python3 -m json.tool
+	RESPONSE=$$(curl -fsS -X POST http://localhost:3001/api/setup/nuke-and-seed \
+		-H "X-Setup-Token: $$SETUP_TOKEN"); \
+	echo "$$RESPONSE" | python3 -m json.tool
 	@echo -e "$(G)✅  Done. Open http://localhost:3000/dev to log in instantly.$(N)"
 
 # ─────────────────────────────────────────────────────────────
@@ -235,8 +239,12 @@ docker-clean-all: ## Remove all containers + images + volumes + networks
 
 docker-prune: ## Full Docker system prune — removes EVERYTHING unused
 	@echo -e "$(R)Docker system prune (removes all unused resources)...$(N)"
-	@docker system prune -af --volumes
-	@echo -e "$(G)✅  Docker system purged$(N)"
+	@if command -v docker &>/dev/null; then \
+		docker system prune -af --volumes; \
+		echo -e "$(G)✅  Docker system purged$(N)"; \
+	else \
+		echo -e "$(Y)⚠️   Docker not installed — skipping$(N)"; \
+	fi
 
 docker-compose-down: ## Stop docker-compose services (dev + prod)
 	@docker-compose -f docker-compose.dev.yml down 2>/dev/null || true

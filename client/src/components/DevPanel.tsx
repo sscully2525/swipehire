@@ -16,6 +16,7 @@ export default function DevPanel() {
   const [loading, setLoading] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
   const { setAuth } = useAuthStore();
+  const currentEmail = useAuthStore((state) => state.user?.email);
   const navigate = useNavigate();
 
   const switchTo = async (email: string) => {
@@ -62,8 +63,6 @@ export default function DevPanel() {
     }
   };
 
-  const currentUser = useAuthStore.getState();
-
   return (
     <div className="fixed bottom-4 left-4 z-[9999] font-mono text-xs">
       {open && (
@@ -77,7 +76,7 @@ export default function DevPanel() {
           {/* Account switcher */}
           <div className="p-2 space-y-1">
             {ACCOUNTS.map((acct) => {
-              const isCurrent = currentUser.user?.email === acct.email;
+              const isCurrent = currentEmail === acct.email;
               return (
                 <button
                   key={acct.email}

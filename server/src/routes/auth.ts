@@ -20,6 +20,16 @@ import { validatePassword } from '../utils/password';
 
 const router = Router();
 
+const parseCookieHeader = (cookieHeader?: string): Record<string, string> => {
+  if (!cookieHeader) return {};
+  return cookieHeader.split(';').reduce<Record<string, string>>((cookies, part) => {
+    const [rawName, ...rawValue] = part.trim().split('=');
+    if (!rawName) return cookies;
+    cookies[rawName] = decodeURIComponent(rawValue.join('=') || '');
+    return cookies;
+  }, {});
+};
+
 
 const slugifyCompany = (name: string): string =>
   name
@@ -318,12 +328,19 @@ router.get('/me', async (req, res) => {
 // LinkedIn OAuth - redirect to LinkedIn authorization
 router.get('/linkedin', (req: Request, res: Response) => {
   const clientId = process.env.LINKEDIN_CLIENT_ID;
-  if (!clientId) {
+  const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
     return res.status(503).json({ error: 'LinkedIn OAuth not configured' });
   }
   const redirectUri = process.env.LINKEDIN_REDIRECT_URI || `${process.env.CLIENT_URL || 'http://localhost:3001'}/api/auth/linkedin/callback`;
   const scope = 'openid profile email';
-  const state = Math.random().toString(36).substring(2);
+  const state = uuidv4();
+  res.cookie('linkedin_oauth_state', state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 10 * 60 * 1000,
+  });
   const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${state}`;
   res.redirect(url);
 });
@@ -332,13 +349,21 @@ router.get('/linkedin', (req: Request, res: Response) => {
 router.get('/linkedin/callback', async (req: Request, res: Response) => {
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
   try {
-    const { code } = req.query;
+    const { code, state } = req.query;
     if (!code) {
+      return res.redirect(`${clientUrl}/login?error=linkedin_failed`);
+    }
+    const expectedState = parseCookieHeader(req.headers.cookie).linkedin_oauth_state;
+    res.clearCookie('linkedin_oauth_state');
+    if (!expectedState || typeof state !== 'string' || state !== expectedState) {
       return res.redirect(`${clientUrl}/login?error=linkedin_failed`);
     }
 
     const clientId = process.env.LINKEDIN_CLIENT_ID;
     const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      return res.redirect(`${clientUrl}/login?error=linkedin_failed`);
+    }
     const redirectUri = process.env.LINKEDIN_REDIRECT_URI || `${process.env.CLIENT_URL || 'http://localhost:3001'}/api/auth/linkedin/callback`;
 
     // Exchange code for token

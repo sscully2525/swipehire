@@ -11,6 +11,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2023-10-16',
 });
 
+const isStripeConfigured = (): boolean => {
+  const key = process.env.STRIPE_SECRET_KEY;
+  return !!key && !key.includes('dummy') && key.startsWith('sk_');
+};
+
+const isStripePriceConfigured = (priceId?: string): boolean =>
+  !!priceId && priceId.startsWith('price_') && !priceId.includes('dummy');
+
 // Subscription plans
 interface Plan {
   id: string;
@@ -103,11 +111,15 @@ router.post('/checkout', authenticate, async (req, res) => {
     if (!plan || planId === 'free') {
       return res.status(400).json({ error: 'Invalid plan' });
     }
-    
-    if (!plan.priceId) {
-      return res.status(400).json({ error: 'Plan not configured' });
+
+    if (!isStripeConfigured()) {
+      return res.status(503).json({ error: 'Stripe checkout is not configured' });
     }
-    
+
+    if (!isStripePriceConfigured(plan.priceId)) {
+      return res.status(503).json({ error: 'Selected plan is not configured' });
+    }
+
     // Get or create Stripe customer
     let customerId: string | null = null;
     const existingSub = await query(
@@ -164,6 +176,10 @@ router.post('/checkout', authenticate, async (req, res) => {
 // Create billing portal session
 router.post('/portal', authenticate, async (req, res) => {
   try {
+    if (!isStripeConfigured()) {
+      return res.status(503).json({ error: 'Stripe billing portal is not configured' });
+    }
+
     const userId = req.userId as string;
     const result = await query(
       'SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1 LIMIT 1',

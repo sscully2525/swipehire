@@ -27,6 +27,7 @@ RUN apk add --no-cache wget && \
 
 # Copy build output + pruned production node_modules
 COPY --from=builder --chown=app:app /app/dist ./dist
+COPY --from=builder --chown=app:app /app/migrations ./migrations
 COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 COPY --from=builder --chown=app:app /app/package*.json ./
 

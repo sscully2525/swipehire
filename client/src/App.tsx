@@ -12,7 +12,7 @@ import RecruiterLayout from './components/RecruiterLayout';
 
 // Dev-only tools — tree-shaken out of production builds by Vite
 const DevPanel = import.meta.env.DEV ? lazy(() => import('./components/DevPanel')) : null;
-const Dev = lazy(() => import('./pages/Dev'));
+const Dev = import.meta.env.DEV ? lazy(() => import('./pages/Dev')) : null;
 
 // Code-split each page route so the initial bundle stays small.
 // Previously this file imported every page eagerly, producing an
@@ -29,7 +29,7 @@ const Matches = lazy(() => import('./pages/Matches'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Subscription = lazy(() => import('./pages/Subscription'));
-const ApiTester = lazy(() => import('./pages/ApiTester'));
+const ApiTester = import.meta.env.DEV ? lazy(() => import('./pages/ApiTester')) : null;
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Work = lazy(() => import('./pages/Work'));
 const Messages = lazy(() => import('./pages/Messages'));
@@ -105,7 +105,7 @@ function App() {
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
           {/* Dev-only quick login page */}
-          {import.meta.env.DEV && <Route path="/dev" element={<Dev />} />}
+          {import.meta.env.DEV && Dev && <Route path="/dev" element={<Dev />} />}
 
           {/* Public routes */}
           <Route
@@ -158,7 +158,7 @@ function App() {
             <Route path="/profile" element={isAuthenticated && isCandidate ? <Profile /> : <Navigate to={defaultRedirect} />} />
             <Route path="/analytics" element={isAuthenticated && isCandidate ? <Analytics /> : <Navigate to={defaultRedirect} />} />
             <Route path="/subscription" element={isAuthenticated ? <Subscription /> : <Navigate to="/login" />} />
-            <Route path="/api-tester" element={isAuthenticated && user?.role === 'admin' ? <ApiTester /> : <Navigate to={defaultRedirect} />} />
+            <Route path="/api-tester" element={import.meta.env.DEV && ApiTester && isAuthenticated && user?.role === 'admin' ? <ApiTester /> : <Navigate to={defaultRedirect} />} />
             <Route path="/notifications" element={isAuthenticated ? <Notifications /> : <Navigate to="/login" />} />
             <Route path="/work" element={isAuthenticated && isCandidate ? <Work /> : <Navigate to={defaultRedirect} />} />
             <Route path="/messages" element={isAuthenticated && isCandidate ? <Messages /> : <Navigate to={defaultRedirect} />} />

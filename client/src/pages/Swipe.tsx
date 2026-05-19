@@ -40,7 +40,7 @@ function Swipe() {
     tech: [] as string[],
   });
 
-  const { remainingSwipes, dailyLimit, setSwipeInfo, decrementSwipes } = useSwipeStore();
+  const { remainingSwipes, dailyLimit, setSwipeInfo } = useSwipeStore();
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -82,7 +82,6 @@ function Swipe() {
       const response = await api.post('/swipes', { jobId: job.id, direction });
       setSwipeInfo(response.data.remainingSwipes, useSwipeStore.getState().dailyLimit);
       if (response.data.match) setMatch(job);
-      if (direction === 'right') decrementSwipes();
       setCurrentIndex((prev) => prev + 1);
     } catch (err: any) {
       if (err.response?.data?.upgradeRequired) {
@@ -91,7 +90,7 @@ function Swipe() {
         toast.error('Failed to record swipe');
       }
     }
-  }, [currentIndex, jobs, decrementSwipes, setSwipeInfo]);
+  }, [currentIndex, jobs, setSwipeInfo]);
 
   // Keyboard shortcuts
   useEffect(() => {

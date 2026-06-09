@@ -575,7 +575,7 @@ function JobForm({ onSubmit, onCancel }: { onSubmit: (data: any) => void, onCanc
           className="input-field"
           value={formData.description}
           onChange={(e) => setFormData({...formData, description: e.target.value})}
-          placeholder="Describe the role and responsibilities..."
+          placeholder="What needs to be done, what's included, what does 'done' look like…"
         />
       </div>
 
@@ -711,7 +711,7 @@ function JobForm({ onSubmit, onCancel }: { onSubmit: (data: any) => void, onCanc
           Cancel
         </button>
         <button type="submit" className="btn-primary">
-          Post Job
+          Post Gig
         </button>
       </div>
     </form>

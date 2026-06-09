@@ -49,7 +49,7 @@ function RecruiterSignup() {
         accessToken,
         refreshToken
       );
-      toast.success('Company account created!');
+      toast.success('Client account created — post your first gig!');
       navigate('/recruiter/dashboard');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Signup failed');
@@ -74,14 +74,14 @@ function RecruiterSignup() {
           >
             <span className="text-3xl">🏢</span>
           </motion.div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Post jobs & hire talent</h2>
-          <p className="mt-2 text-sm text-gray-600">Create your company account</p>
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Post gigs, get bids</h2>
+          <p className="mt-2 text-sm text-gray-600">Create your client account — free while in beta</p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Company name</label>
+              <label className="block text-sm font-medium text-gray-700">Company or project name</label>
               <input
                 type="text"
                 name="companyName"
@@ -89,7 +89,7 @@ function RecruiterSignup() {
                 value={formData.companyName}
                 onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                 className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Acme Inc."
+                placeholder="Acme Inc. or your side project"
               />
             </div>
 
@@ -119,7 +119,7 @@ function RecruiterSignup() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Work email</label>
+              <label className="block text-sm font-medium text-gray-700">Email</label>
               <input
                 type="email"
                 name="email"
@@ -148,7 +148,7 @@ function RecruiterSignup() {
                     <div className={`h-full ${passwordStrength.color} transition-all`} style={{ width: `${Math.min(100, passwordStrength.score * 20)}%` }} />
                   </div>
                   <p className={`mt-1 text-xs font-medium ${passwordStrength.text}`}>
-                    {passwordStrength.label} password — required for hiring accounts.
+                    {passwordStrength.label} password — use 10+ chars and at least 3 of lowercase, uppercase, digits, symbols.
                   </p>
                 </div>
               )}
@@ -163,7 +163,7 @@ function RecruiterSignup() {
             {isLoading ? (
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
             ) : (
-              'Create company account'
+              'Create client account'
             )}
           </button>
 
@@ -179,9 +179,9 @@ function RecruiterSignup() {
               <Link to="/terms" className="underline hover:text-gray-600">Terms of Service</Link>.
             </p>
             <p className="text-sm text-gray-600">
-              Looking for a job?{' '}
+              Looking for gigs instead?{' '}
               <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                Candidate sign up
+                Join as a freelancer
               </Link>
             </p>
           </div>

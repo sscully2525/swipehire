@@ -521,7 +521,8 @@ router.post('/password/reset/request', [
   try {
     const user = await findUserByEmail(req.body.email);
     if (user) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      // crypto-secure 6-digit code (Math.random is guessable)
+      const code = (crypto.randomInt(100000, 1000000)).toString();
       const codeHash = await (await import('bcryptjs')).hash(code, 8);
       await query(
         `INSERT INTO verification_codes (user_id, code_hash, purpose, expires_at)
@@ -533,9 +534,11 @@ router.post('/password/reset/request', [
         logger.warn('verification_codes table missing; reset request not stored');
       });
       logger.info('Password reset requested', { userId: user.id });
-      // Email transport is wired through routes/verification; this MVP just logs
-      // the code in dev so testers can use it. In prod, hook into the same
-      // email transport used elsewhere.
+
+      const { sendPasswordResetEmail } = await import('../services/email');
+      sendPasswordResetEmail(user.email, code).catch(() => {});
+      // Dev convenience: also log the code locally so testers don't need
+      // a real email pipeline.
       if (process.env.NODE_ENV !== 'production') {
         logger.warn({ userId: user.id, code }, '[DEV ONLY] password reset code');
       }

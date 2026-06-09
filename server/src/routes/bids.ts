@@ -9,10 +9,16 @@ import {
 import { authenticate } from '../middleware/auth';
 import { createMatch } from '../models/swipe';
 import { createNotification } from '../models/notification';
+import { sendBidAcceptedEmail, sendBidDeclinedEmail, sendNewBidEmail } from '../services/email';
 import { query } from '../db';
 import { logger } from '../logger';
 
 const router = Router();
+
+const APP_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+
+const formatAmount = (amount: number, pricingType?: string) =>
+  `$${Number(amount).toLocaleString()}${pricingType === 'hourly' ? '/hr' : ''}`;
 
 /**
  * Does this user own the gig (the startup that posted the job)? Gig owners are
@@ -73,6 +79,35 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
       estimatedDuration,
     });
 
+    // Tell the gig owner (best-effort, after responding is fine but we're
+    // already async — fire and forget so email latency never blocks the bid).
+    query(
+      `SELECT j.title AS gig_title, owner.email AS owner_email, owner.id AS owner_id,
+              bidder.first_name AS bidder_name
+       FROM jobs j
+       JOIN startups s ON j.startup_id = s.id
+       JOIN users owner ON s.created_by = owner.id
+       JOIN users bidder ON bidder.id = $2
+       WHERE j.id = $1`,
+      [jobId, req.userId]
+    )
+      .then(async (r) => {
+        const row = r.rows[0];
+        if (!row) return;
+        await createNotification(
+          row.owner_id,
+          'new_bid',
+          'New bid on your gig',
+          `${row.bidder_name} bid ${formatAmount(bid.amount, bid.pricing_type)} on "${row.gig_title}"`,
+          { bidId: bid.id, jobId }
+        );
+        await sendNewBidEmail(
+          row.owner_email, row.gig_title, row.bidder_name,
+          formatAmount(bid.amount, bid.pricing_type), APP_URL
+        );
+      })
+      .catch((err) => logger.warn({ err, jobId }, 'New-bid notify failed'));
+
     res.status(201).json(bid);
   } catch (err) {
     logger.error({ err, userId: req.userId }, 'Create bid error');
@@ -125,6 +160,14 @@ router.patch('/:id/status', authenticate, async (req: Request, res: Response) =>
 
     // An accepted bid is the deal: open the chat channel by creating a match
     // (idempotent — reuses an existing one) and tell the freelancer.
+    const freelancer = await query(
+      `SELECT u.email, j.title AS gig_title FROM users u, jobs j
+       WHERE u.id = $1 AND j.id = $2`,
+      [bid.user_id, bid.job_id]
+    );
+    const fEmail = freelancer.rows[0]?.email;
+    const gigTitle = freelancer.rows[0]?.gig_title || 'your gig';
+
     if (status === 'accepted') {
       const match = await createMatch(bid.user_id, bid.job_id);
       await createNotification(
@@ -134,6 +177,7 @@ router.patch('/:id/status', authenticate, async (req: Request, res: Response) =>
         'Your bid was accepted — the chat is now open to work out the details.',
         { bidId: bid.id, jobId: bid.job_id, matchId: match?.id }
       );
+      if (fEmail) sendBidAcceptedEmail(fEmail, gigTitle, APP_URL).catch(() => {});
     } else {
       await createNotification(
         bid.user_id,
@@ -142,6 +186,7 @@ router.patch('/:id/status', authenticate, async (req: Request, res: Response) =>
         'Your bid on a gig was declined. Keep exploring — more gigs are waiting.',
         { bidId: bid.id, jobId: bid.job_id }
       );
+      if (fEmail) sendBidDeclinedEmail(fEmail, gigTitle, APP_URL).catch(() => {});
     }
 
     res.json(updated);

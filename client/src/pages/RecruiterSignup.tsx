@@ -174,6 +174,10 @@ function RecruiterSignup() {
                 Sign in
               </Link>
             </p>
+            <p className="text-xs text-gray-400">
+              By signing up you agree to the{' '}
+              <Link to="/terms" className="underline hover:text-gray-600">Terms of Service</Link>.
+            </p>
             <p className="text-sm text-gray-600">
               Looking for a job?{' '}
               <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">

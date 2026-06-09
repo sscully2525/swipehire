@@ -249,12 +249,16 @@ function Signup() {
             )}
           </button>
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
               <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
                 Sign in
               </Link>
+            </p>
+            <p className="text-xs text-gray-400">
+              By signing up you agree to the{' '}
+              <Link to="/terms" className="underline hover:text-gray-600">Terms of Service</Link>.
             </p>
           </div>
         </form>

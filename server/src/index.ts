@@ -1,3 +1,14 @@
+import * as Sentry from '@sentry/node';
+// Initialize Sentry before anything else so it can instrument http/express.
+// No-op unless SENTRY_DSN is set.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.1,
+  });
+}
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -198,6 +209,12 @@ if (process.env.NODE_ENV === 'production') {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(clientDist, 'index.html'));
   });
+}
+
+// Report unhandled route errors to Sentry (before our own handler so the
+// response shape is unchanged). No-op when SENTRY_DSN is unset.
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
 }
 
 // Central error handler — logs with requestId + path + (optional) user, returns

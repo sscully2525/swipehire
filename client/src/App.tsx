@@ -17,6 +17,8 @@ const Dev = import.meta.env.DEV ? lazy(() => import('./pages/Dev')) : null;
 // Code-split each page route so the initial bundle stays small.
 // Previously this file imported every page eagerly, producing an
 // 882KB single-chunk bundle (audit 🟠).
+const Landing = lazy(() => import('./pages/Landing'));
+const Terms = lazy(() => import('./pages/Terms'));
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const RecruiterSignup = lazy(() => import('./pages/RecruiterSignup'));
@@ -124,6 +126,7 @@ function App() {
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/terms" element={<Terms />} />
 
           {/* Onboarding (candidates only) */}
           <Route
@@ -186,8 +189,8 @@ function App() {
             />
           </Route>
 
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to={defaultRedirect} />} />
+          {/* Root: public landing for visitors, app for signed-in users */}
+          <Route path="/" element={isAuthenticated ? <Navigate to={defaultRedirect} /> : <Landing />} />
           <Route path="*" element={<Navigate to={defaultRedirect} />} />
         </Routes>
       </Suspense>

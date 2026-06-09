@@ -8,17 +8,17 @@ const steps = [
   {
     id: 'basics',
     title: 'Basic Info',
-    description: 'Tell us about yourself',
+    description: 'Tell clients who you are',
   },
   {
     id: 'experience',
-    title: 'Experience',
-    description: 'Your background and skills',
+    title: 'Skills',
+    description: 'What kind of gigs can you crush?',
   },
   {
     id: 'preferences',
-    title: 'Preferences',
-    description: 'What are you looking for?',
+    title: 'Your Rates',
+    description: 'What do you charge, and how do you like to work?',
   },
 ];
 
@@ -92,7 +92,7 @@ function Onboarding() {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="e.g. Senior Software Engineer"
+                placeholder="e.g. Freelance Full-Stack Developer"
               />
             </div>
             <div>
@@ -112,7 +112,7 @@ function Onboarding() {
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                 rows={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Tell startups about yourself..."
+                placeholder="What you build, what you've shipped, why clients should pick you…"
               />
             </div>
           </div>
@@ -162,23 +162,23 @@ function Onboarding() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Min Salary</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Hourly rate — from ($)</label>
                 <input
                   type="number"
                   value={formData.preferredSalaryMin}
                   onChange={(e) => setFormData({ ...formData, preferredSalaryMin: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="120000"
+                  placeholder="40"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Max Salary</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Hourly rate — to ($)</label>
                 <input
                   type="number"
                   value={formData.preferredSalaryMax}
                   onChange={(e) => setFormData({ ...formData, preferredSalaryMax: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="200000"
+                  placeholder="90"
                 />
               </div>
             </div>

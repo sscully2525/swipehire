@@ -10,8 +10,7 @@ function AuthCallback() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   useEffect(() => {
-    const accessToken = params.get('accessToken');
-    const refreshToken = params.get('refreshToken');
+    const code = params.get('code');
     const error = params.get('error');
 
     if (error) {
@@ -20,13 +19,22 @@ function AuthCallback() {
       return;
     }
 
-    if (!accessToken || !refreshToken) {
+    if (!code) {
       navigate('/login');
       return;
     }
 
-    // Fetch user info with the new token
-    api.get('/auth/me', { headers: { Authorization: `Bearer ${accessToken}` } })
+    // The server redirects here with a short-lived one-time code instead of
+    // raw tokens (keeps JWTs out of the URL/history). Exchange it, then load
+    // the user.
+    let accessToken = '';
+    let refreshToken = '';
+    api.post('/auth/oauth/exchange', { code })
+      .then((res) => {
+        accessToken = res.data.accessToken;
+        refreshToken = res.data.refreshToken;
+        return api.get('/auth/me', { headers: { Authorization: `Bearer ${accessToken}` } });
+      })
       .then((res) => {
         const user = res.data;
         setAuth(

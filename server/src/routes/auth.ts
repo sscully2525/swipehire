@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 import axios from 'axios';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import {
@@ -15,7 +16,7 @@ import {
   invalidateRefreshToken,
 } from '../models/user';
 import { query, getClient } from '../db';
-import { logger } from '../index';
+import { logger, redis } from '../index';
 import { validatePassword } from '../utils/password';
 
 const router = Router();
@@ -258,7 +259,7 @@ router.post('/recruiter/signup', [
       await client.query(
         `INSERT INTO startups (id, name, slug, description, stage, created_by, verified, is_demo, source)
          VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, 'user')`,
-        [startupId, companyName, companySlug, `${companyName} is hiring on SwipeHire`, 'Seed', user.id, false]
+        [startupId, companyName, companySlug, `${companyName} is hiring on Gigly`, 'Seed', user.id, false]
       );
 
       await client.query('COMMIT');
@@ -384,10 +385,13 @@ router.get('/linkedin/callback', async (req: Request, res: Response) => {
       return res.redirect(`${clientUrl}/login?error=linkedin_no_email`);
     }
 
-    // Find or create user
+    // Find or create user. OAuth users never use this password to log in —
+    // it only exists to satisfy the NOT NULL hash column — but it must still
+    // be unguessable, so use the CSPRNG, not Math.random().
     let user = await findUserByEmail(email);
     if (!user) {
-      user = await createUser(email, Math.random().toString(36), firstName || 'LinkedIn', lastName || 'User');
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      user = await createUser(email, randomPassword, firstName || 'LinkedIn', lastName || 'User');
     }
 
     // Mark LinkedIn as verified and invalidate cache
@@ -401,11 +405,48 @@ router.get('/linkedin/callback', async (req: Request, res: Response) => {
 
     logger.info('LinkedIn OAuth login', { userId: user.id, email });
 
-    // Redirect to client with tokens
-    res.redirect(`${clientUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&role=${user.role || 'candidate'}`);
+    // Never put JWTs in the redirect URL — query strings end up in browser
+    // history, server access logs, and Referer headers. Instead, park the
+    // tokens in Redis under a short-lived one-time code; the client trades
+    // the code for tokens via POST /auth/oauth/exchange.
+    const oneTimeCode = crypto.randomBytes(32).toString('hex');
+    await redis.setEx(
+      `oauth_code:${oneTimeCode}`,
+      60,
+      JSON.stringify({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        role: user.role || 'candidate',
+      })
+    );
+    res.redirect(`${clientUrl}/auth/callback?code=${oneTimeCode}`);
   } catch (error) {
     logger.error('LinkedIn callback error', { error });
     res.redirect(`${clientUrl}/login?error=linkedin_failed`);
+  }
+});
+
+// Trade a one-time OAuth code (set by the provider callback above) for the
+// actual JWTs. The code is single-use: it's deleted before the tokens are
+// returned, so a replayed/leaked URL yields nothing.
+router.post('/oauth/exchange', async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body;
+    if (!code || typeof code !== 'string' || !/^[a-f0-9]{64}$/.test(code)) {
+      return res.status(400).json({ error: 'Invalid code' });
+    }
+
+    const key = `oauth_code:${code}`;
+    const payload = await redis.get(key);
+    if (!payload) {
+      return res.status(401).json({ error: 'Code expired or already used' });
+    }
+    await redis.del(key);
+
+    res.json(JSON.parse(payload));
+  } catch (error) {
+    logger.error('OAuth code exchange error', { error });
+    res.status(500).json({ error: 'Failed to complete sign-in' });
   }
 });
 

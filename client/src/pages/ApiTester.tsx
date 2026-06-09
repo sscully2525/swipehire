@@ -39,7 +39,7 @@ function ApiTester() {
   useEffect(() => {
     // Get token from Zustand persist storage
     try {
-      const authData = localStorage.getItem('swipehire-auth');
+      const authData = localStorage.getItem('gigly-auth');
       if (authData) {
         const parsed = JSON.parse(authData);
         if (parsed.state?.accessToken) {

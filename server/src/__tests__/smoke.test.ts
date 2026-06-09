@@ -12,7 +12,7 @@ describe('smoke', () => {
 
   it('package.json declares server name', () => {
     const pkg = require('../../package.json');
-    expect(pkg.name).toBe('swipehire-server');
+    expect(pkg.name).toBe('gigly-server');
   });
 
   it('JWT helpers sign and verify a token', async () => {

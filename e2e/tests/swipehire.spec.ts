@@ -32,7 +32,7 @@ test.describe('Candidate core flow', () => {
   test('signup to swipe page loads job cards and swipe controls', async ({ page }) => {
     await signUpCandidate(page);
     await page.goto('/swipe');
-    await expect(page.getByText(/Discover Jobs|caught up/i)).toBeVisible();
+    await expect(page.getByText(/Discover Gigs|caught up/i)).toBeVisible();
     const rightButton = page.getByTestId('swipe-right');
     if (await rightButton.isVisible()) {
       await expect(page.getByTestId('job-card')).toBeVisible();

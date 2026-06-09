@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SwipeHire is a Tinder-style job-matching platform. Candidates swipe on startup jobs; recruiters review interested candidates. Both sides must express interest for a match to form. Matches unlock real-time chat.
+Gigly (formerly SwipeHire) is a Tinder-style freelance gig marketplace. Freelancers **swipe to discover** gigs posted by clients with a price point (fixed or hourly budget), and **bid to commit** — placing an offer with their own price. The client reviews bids and accepts one; an accepted bid (or a mutual right-swipe) creates a match that unlocks real-time chat. Payments are settled off-platform for now. Legacy salaried job posts (`pricing_type = 'salary'`) still work; see `GIGLY_PIVOT.md` for the migration roadmap and what's intentionally still branded "swipehire" (local DB name, dev seed emails).
+
+Domain naming note: the code still uses the legacy table/route names — `jobs` = gigs, `startups` = client companies, `recruiter` routes = client-side, `candidates` = freelancers. The `bids` table/routes (`/api/bids`) are the new gig-offer flow.
 
 Three sub-projects live in this monorepo:
 - `server/` — Node.js/Express/TypeScript REST API + Socket.io (port 3001)
@@ -79,14 +81,14 @@ email: admin@swipehire.com  password: admin123
 
 **Entry point** `server/src/index.ts` wires together all middleware, mounts routes, starts Socket.io, and auto-calls `initDB()` + creates a default admin on first boot. The `logger` (winston) and `redis` client are exported from this file and imported across the codebase — don't create new instances elsewhere.
 
-**Database** (`server/src/db/index.ts`) exports `query(sql, params)` and `getClient()` from a pg `Pool`. `initDB()` is idempotent (`CREATE TABLE IF NOT EXISTS`). Schema is defined inline here — there is no migration framework; schema changes go into `initDB()` or `db/migrate.ts`.
+**Database** (`server/src/db/index.ts`) exports `query(sql, params)` and `getClient()` from a pg `Pool`. `initDB()` tests the connection then runs `db/migrate.ts`, a lightweight homegrown runner that applies `server/migrations/*.sql` in lexicographic order (tracked in `schema_migrations`, each file in a transaction, no rollbacks). Schema changes go in a new numbered migration file.
 
 **Models** (`server/src/models/`) are thin data-access modules:
 - `user.ts` — user CRUD, bcrypt password hashing, JWT generation/verification (`verifyAccessToken`, `verifyRefreshToken`), Redis refresh-token store, swipe-limit lookup by tier
 - `swipe.ts` — swipe creation, match detection, match creation
 - `chat.ts` / `notification.ts` — messaging and notification persistence
 
-**Routes** each define their own inline `authenticate` middleware (duplicated across files) that calls `verifyAccessToken` and attaches `req.userId`. The global `Request` type is augmented in `server/src/types/express.d.ts`.
+**Routes** import shared `authenticate` / `requireAdmin` / `requireRecruiter` middleware from `server/src/middleware/auth.ts` (don't redefine locally). The global `Request` type is augmented in `server/src/types/express.d.ts`. `routes/bids.ts` (`/api/bids`) is the gig-offer flow: place/withdraw bids (freelancer) and review/accept/decline (gig owner); accepting a bid creates a match and notifies the freelancer.
 
 **AI service** (`server/src/services/ai.ts`) computes match scores with a weighted TF-IDF-style algorithm (skills 40%, experience 20%, salary 20%, remote 10%, stage 10%). Results are cached in Redis for 10 minutes under `recommendations:{userId}`.
 
@@ -153,7 +155,7 @@ CLIENT_URL                # CORS origin, defaults to http://localhost:3000
 
 ## Key Conventions
 
-- **Authentication** is duplicated as a local `authenticate` middleware in each route file rather than shared. When adding new routes, copy the same pattern from an existing route.
+- **Authentication**: import `authenticate` (and `requireAdmin`/`requireRecruiter` as needed) from `server/src/middleware/auth.ts` in every new route file — never define a local copy.
 - **Database queries** always use parameterised `query(sql, [params])` — never string interpolation.
 - **Cache invalidation**: update functions in `models/user.ts` call `redis.del(`user:{id}`)` after writes. Follow the same pattern for any model that adds Redis caching.
 - **Logging**: use the exported `logger` from `server/src/index.ts` (winston), not `console.log`, except in `db/index.ts` which predates the logger import.

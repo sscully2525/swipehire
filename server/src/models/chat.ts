@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface ChatMessage {
   id: string;
   match_id: string;
-  sender_id: string;
+  sender_id: string | null; // null for system messages
   sender_type: 'candidate' | 'company';
   content: string;
   message_type: 'text' | 'image' | 'file' | 'system';
@@ -67,5 +67,14 @@ export const getUnreadCount = async (userId: string): Promise<number> => {
 };
 
 export const createSystemMessage = async (matchId: string, content: string): Promise<ChatMessage> => {
-  return createMessage(matchId, 'system', 'company', content, 'system');
+  // System messages have no human sender. sender_id is a nullable UUID FK to
+  // users(id) — passing the literal string 'system' (as this used to) makes
+  // Postgres reject the row with an invalid-UUID error.
+  const result = await query(
+    `INSERT INTO chat_messages (id, match_id, sender_id, sender_type, content, message_type)
+     VALUES ($1, $2, NULL, 'company', $3, 'system')
+     RETURNING *`,
+    [uuidv4(), matchId, content]
+  );
+  return result.rows[0];
 };

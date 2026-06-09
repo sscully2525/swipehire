@@ -1,5 +1,5 @@
 import { motion, PanInfo, useMotionValue, useTransform } from 'framer-motion';
-import { MapPin, DollarSign, TrendingUp, Wifi } from 'lucide-react';
+import { MapPin, DollarSign, TrendingUp, Wifi, CalendarClock } from 'lucide-react';
 
 interface JobCardProps {
   job: {
@@ -10,6 +10,13 @@ interface JobCardProps {
     salary_max: number;
     equity_min: number;
     equity_max: number;
+    // Gig pricing (Gigly) — present when the post is a priced gig rather
+    // than a salaried role.
+    pricing_type?: string;
+    budget_min?: number;
+    budget_max?: number;
+    deadline?: string;
+    estimated_duration?: string;
     location: string;
     remote_allowed: boolean;
     tech_stack: string[];
@@ -56,6 +63,16 @@ function JobCard({ job, onSwipe }: JobCardProps) {
   };
 
   const equity = formatEquity(job.equity_min, job.equity_max);
+
+  const isGig = job.pricing_type === 'fixed' || job.pricing_type === 'hourly';
+  const formatBudget = () => {
+    const min = job.budget_min;
+    const max = job.budget_max;
+    if (!min && !max) return 'Open to offers';
+    const suffix = job.pricing_type === 'hourly' ? '/hr' : '';
+    if (min && max && min !== max) return `$${min.toLocaleString()}–$${max.toLocaleString()}${suffix}`;
+    return `$${(min ?? max)!.toLocaleString()}${suffix}`;
+  };
 
   return (
     <motion.div
@@ -139,16 +156,36 @@ function JobCard({ job, onSwipe }: JobCardProps) {
 
         <p className="text-slate-600 text-sm leading-relaxed line-clamp-3">{job.description}</p>
 
-        {/* Compensation */}
+        {/* Compensation — gig budget when priced as a gig, salary otherwise */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-50 rounded-xl p-3">
-            <div className="flex items-center gap-1 text-xs text-slate-500 mb-1">
-              <DollarSign className="w-3 h-3" />
-              Salary
+          {isGig ? (
+            <div className="bg-slate-50 rounded-xl p-3">
+              <div className="flex items-center gap-1 text-xs text-slate-500 mb-1">
+                <DollarSign className="w-3 h-3" />
+                {job.pricing_type === 'hourly' ? 'Hourly rate' : 'Gig budget'}
+              </div>
+              <p className="text-sm font-semibold text-slate-900">{formatBudget()}</p>
             </div>
-            <p className="text-sm font-semibold text-slate-900">{formatSalary(job.salary_min, job.salary_max)}</p>
-          </div>
-          {equity && (
+          ) : (
+            <div className="bg-slate-50 rounded-xl p-3">
+              <div className="flex items-center gap-1 text-xs text-slate-500 mb-1">
+                <DollarSign className="w-3 h-3" />
+                Salary
+              </div>
+              <p className="text-sm font-semibold text-slate-900">{formatSalary(job.salary_min, job.salary_max)}</p>
+            </div>
+          )}
+          {isGig && (job.deadline || job.estimated_duration) ? (
+            <div className="bg-slate-50 rounded-xl p-3">
+              <div className="flex items-center gap-1 text-xs text-slate-500 mb-1">
+                <CalendarClock className="w-3 h-3" />
+                {job.deadline ? 'Deadline' : 'Est. time'}
+              </div>
+              <p className="text-sm font-semibold text-slate-900">
+                {job.deadline ? new Date(job.deadline).toLocaleDateString() : job.estimated_duration}
+              </p>
+            </div>
+          ) : equity ? (
             <div className="bg-slate-50 rounded-xl p-3">
               <div className="flex items-center gap-1 text-xs text-slate-500 mb-1">
                 <TrendingUp className="w-3 h-3" />
@@ -156,7 +193,7 @@ function JobCard({ job, onSwipe }: JobCardProps) {
               </div>
               <p className="text-sm font-semibold text-slate-900">{equity}</p>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Tech Stack */}

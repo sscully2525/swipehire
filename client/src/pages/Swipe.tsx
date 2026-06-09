@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SlidersHorizontal, RefreshCw, Zap, ArrowLeft, ArrowRight } from 'lucide-react';
+import { SlidersHorizontal, RefreshCw, Zap, ArrowLeft, ArrowRight, HandCoins } from 'lucide-react';
 import api from '../lib/api';
 import { useSwipeStore } from '../store/auth';
 import toast from 'react-hot-toast';
 import JobCard from '../components/JobCard';
 import FilterPanel from '../components/FilterPanel';
 import MatchModal from '../components/MatchModal';
+import BidModal from '../components/BidModal';
 
 interface Job {
   id: string;
@@ -16,6 +17,11 @@ interface Job {
   salary_max: number;
   equity_min: number;
   equity_max: number;
+  pricing_type?: string;
+  budget_min?: number;
+  budget_max?: number;
+  deadline?: string;
+  estimated_duration?: string;
   location: string;
   remote_allowed: boolean;
   tech_stack: string[];
@@ -33,6 +39,7 @@ function Swipe() {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [match, setMatch] = useState<Job | null>(null);
+  const [bidGig, setBidGig] = useState<Job | null>(null);
   const [filters, setFilters] = useState({
     remote: false,
     minSalary: '',
@@ -119,9 +126,9 @@ function Swipe() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Discover Jobs</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Discover Gigs</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {jobs.length - currentIndex} jobs remaining
+            {jobs.length - currentIndex} gigs remaining
           </p>
         </div>
         <button
@@ -211,9 +218,17 @@ function Swipe() {
           >
             <ArrowLeft className="w-6 h-6" />
           </motion.button>
-          <div className="text-xs text-slate-300 text-center leading-snug">
-            Use arrow keys<br />or drag the card
-          </div>
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            data-testid="place-bid"
+            onClick={() => setBidGig(currentJob)}
+            className="px-5 h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold flex items-center gap-2 shadow-md hover:shadow-lg transition-shadow"
+            title="Place a bid on this gig"
+          >
+            <HandCoins className="w-5 h-5" />
+            Bid
+          </motion.button>
           <motion.button
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.92 }}
@@ -231,6 +246,15 @@ function Swipe() {
         isOpen={!!match}
         job={match}
         onClose={() => setMatch(null)}
+      />
+
+      <BidModal
+        isOpen={!!bidGig}
+        gig={bidGig}
+        onClose={() => setBidGig(null)}
+        // Bidding implies interest — advance past the card like a right swipe
+        // (the bid itself is the commitment; no extra swipe needed).
+        onPlaced={() => setCurrentIndex((prev) => prev + 1)}
       />
     </div>
   );

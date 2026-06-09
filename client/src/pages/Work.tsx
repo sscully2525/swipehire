@@ -63,7 +63,7 @@ function Work() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'jobs', label: 'My Jobs', icon: Briefcase },
+    { id: 'jobs', label: 'My Gigs', icon: Briefcase },
     { id: 'companies', label: 'Companies', icon: Building2 },
     { id: 'connections', label: 'Connections', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -129,7 +129,7 @@ function Work() {
                 <Briefcase className="w-6 h-6 text-blue-600" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-slate-900">Find Jobs</h3>
+                <h3 className="font-semibold text-slate-900">Find Gigs</h3>
                 <p className="text-sm text-slate-500">Browse and apply to new opportunities</p>
               </div>
               <ChevronRight className="w-5 h-5 text-slate-300" />
@@ -163,7 +163,7 @@ function Work() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-slate-900">Analytics</h3>
-                <p className="text-sm text-slate-500">Track your job search performance</p>
+                <p className="text-sm text-slate-500">Track your gig search performance</p>
               </div>
               <ChevronRight className="w-5 h-5 text-slate-300" />
             </Link>
@@ -174,7 +174,7 @@ function Work() {
       {/* My Jobs Tab */}
       {activeTab === 'jobs' && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-slate-900">Matched Jobs</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Matched Gigs</h2>
           {matches.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
               <Briefcase className="w-12 h-12 text-slate-200 mx-auto mb-4" />

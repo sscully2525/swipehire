@@ -31,6 +31,7 @@ const Analytics = lazy(() => import('./pages/Analytics'));
 const Subscription = lazy(() => import('./pages/Subscription'));
 const ApiTester = import.meta.env.DEV ? lazy(() => import('./pages/ApiTester')) : null;
 const Notifications = lazy(() => import('./pages/Notifications'));
+const MyBids = lazy(() => import('./pages/MyBids'));
 const Work = lazy(() => import('./pages/Work'));
 const Messages = lazy(() => import('./pages/Messages'));
 const RecruiterDashboard = lazy(() => import('./pages/recruiter/Dashboard'));
@@ -50,7 +51,7 @@ function App() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Tokens live in the Zustand persisted store (`swipehire-auth`).
+      // Tokens live in the Zustand persisted store (`gigly-auth`).
       const { accessToken, refreshToken } = useAuthStore.getState();
       if (!accessToken) {
         setIsLoading(false);
@@ -160,6 +161,7 @@ function App() {
             <Route path="/subscription" element={isAuthenticated ? <Subscription /> : <Navigate to="/login" />} />
             <Route path="/api-tester" element={import.meta.env.DEV && ApiTester && isAuthenticated && user?.role === 'admin' ? <ApiTester /> : <Navigate to={defaultRedirect} />} />
             <Route path="/notifications" element={isAuthenticated ? <Notifications /> : <Navigate to="/login" />} />
+            <Route path="/bids" element={isAuthenticated && isCandidate ? <MyBids /> : <Navigate to={defaultRedirect} />} />
             <Route path="/work" element={isAuthenticated && isCandidate ? <Work /> : <Navigate to={defaultRedirect} />} />
             <Route path="/messages" element={isAuthenticated && isCandidate ? <Messages /> : <Navigate to={defaultRedirect} />} />
           </Route>

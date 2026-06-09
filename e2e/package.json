@@ -1,8 +1,8 @@
 {
-  "name": "swipehire-e2e",
+  "name": "gigly-e2e",
   "version": "1.0.0",
   "private": true,
-  "description": "End-to-end Playwright tests for SwipeHire.",
+  "description": "End-to-end Playwright tests for Gigly.",
   "scripts": {
     "install:browsers": "playwright install --with-deps",
     "test": "playwright test",

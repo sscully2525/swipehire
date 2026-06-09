@@ -61,7 +61,7 @@ function Onboarding() {
       });
       
       updateUser({ onboardingCompleted: true });
-      toast.success('Welcome to SwipeHire!');
+      toast.success('Welcome to Gigly!');
       window.location.href = '/swipe';
     } catch {
       toast.error('Failed to complete onboarding');

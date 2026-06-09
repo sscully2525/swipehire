@@ -239,6 +239,13 @@ router.post('/webhook', async (req, res) => {
         const customer = session.customer as string;
         const subscriptionId = session.subscription as string;
 
+        // Only ever write known tiers — metadata is attacker-influenced in
+        // dev (unsigned events accepted) and shouldn't be trusted verbatim.
+        if (planId && !PLANS[planId]) {
+          logger.warn({ planId, userId }, 'Webhook ignored: unknown planId in checkout metadata');
+          break;
+        }
+
         if (userId && planId && customer && subscriptionId) {
           // Fetch real subscription period from Stripe
           const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
@@ -259,7 +266,12 @@ router.post('/webhook', async (req, res) => {
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        const tier = subscription.metadata?.planId || (subscription.items.data[0]?.price?.id === process.env.STRIPE_PRO_PRICE_ID ? 'pro' : 'unlimited');
+        const metadataPlan = subscription.metadata?.planId;
+        // Same whitelist rule as checkout.session.completed: never write an
+        // unrecognized tier from event metadata.
+        const tier = (metadataPlan && PLANS[metadataPlan])
+          ? metadataPlan
+          : (subscription.items.data[0]?.price?.id === process.env.STRIPE_PRO_PRICE_ID ? 'pro' : 'unlimited');
         await query(
           `UPDATE subscriptions
            SET status = $1, tier = $2, current_period_start = to_timestamp($3), current_period_end = to_timestamp($4),

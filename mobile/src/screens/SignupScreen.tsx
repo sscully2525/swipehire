@@ -57,7 +57,7 @@ export default function SignupScreen({ navigation }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.logo}>⚡</Text>
-      <Text style={styles.title}>Create your SwipeHire account</Text>
+      <Text style={styles.title}>Create your Gigly account</Text>
       <Text style={styles.subtitle}>Start matching with jobs that fit you.</Text>
 
       <TextInput style={styles.input} placeholder="First name" value={firstName} onChangeText={setFirstName} autoCapitalize="words" />

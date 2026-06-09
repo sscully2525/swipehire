@@ -55,6 +55,19 @@ const normalizeJobPayload = (body: Record<string, unknown>) => ({
   experienceLevel: typeof (body.experienceLevel ?? body.experience_level) === 'string'
     ? String(body.experienceLevel ?? body.experience_level).trim()
     : null,
+  // Gig pricing (Gigly). pricing_type 'salary' keeps legacy salaried-role
+  // behavior; 'fixed'/'hourly' makes the post a priced gig.
+  pricingType: ['salary', 'fixed', 'hourly'].includes(String(body.pricingType ?? body.pricing_type))
+    ? String(body.pricingType ?? body.pricing_type)
+    : 'salary',
+  budgetMin: toNumberOrNull(body.budgetMin ?? body.budget_min),
+  budgetMax: toNumberOrNull(body.budgetMax ?? body.budget_max),
+  deadline: typeof (body.deadline) === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.deadline)
+    ? body.deadline
+    : null,
+  estimatedDuration: typeof (body.estimatedDuration ?? body.estimated_duration) === 'string'
+    ? String(body.estimatedDuration ?? body.estimated_duration).trim().slice(0, 100) || null
+    : null,
 });
 
 const insertJob = async (startupId: string, body: Record<string, unknown>) => {
@@ -65,16 +78,25 @@ const insertJob = async (startupId: string, body: Record<string, unknown>) => {
   if (job.salaryMin !== null && job.salaryMax !== null && job.salaryMin > job.salaryMax) {
     return { status: 400 as const, payload: { error: 'Minimum salary cannot exceed maximum salary' } };
   }
+  if (job.budgetMin !== null && job.budgetMax !== null && job.budgetMin > job.budgetMax) {
+    return { status: 400 as const, payload: { error: 'Minimum budget cannot exceed maximum budget' } };
+  }
+  if (job.pricingType !== 'salary' && job.budgetMin === null && job.budgetMax === null) {
+    return { status: 400 as const, payload: { error: 'A priced gig needs a budget' } };
+  }
 
   const id = uuidv4();
   await query(
     `INSERT INTO jobs (id, startup_id, title, description, requirements, responsibilities,
                        salary_min, salary_max, equity_min, equity_max, location, remote_allowed,
-                       visa_sponsorship, employment_type, tech_stack, experience_level, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'active')`,
+                       visa_sponsorship, employment_type, tech_stack, experience_level,
+                       pricing_type, budget_min, budget_max, deadline, estimated_duration, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+             $17, $18, $19, $20, $21, 'active')`,
     [id, startupId, job.title, job.description, job.requirements, job.responsibilities,
      job.salaryMin, job.salaryMax, job.equityMin, job.equityMax, job.location, job.remoteAllowed,
-     job.visaSponsorship, job.employmentType, job.techStack, job.experienceLevel]
+     job.visaSponsorship, job.employmentType, job.techStack, job.experienceLevel,
+     job.pricingType, job.budgetMin, job.budgetMax, job.deadline, job.estimatedDuration]
   );
 
   return { status: 201 as const, payload: { id, message: 'Job created' } };

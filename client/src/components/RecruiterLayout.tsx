@@ -36,7 +36,7 @@ function RecruiterLayout() {
 
   const navItems = [
     { path: '/recruiter/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/recruiter/candidates', label: 'Candidates', icon: Users },
+    { path: '/recruiter/candidates', label: 'Freelancers', icon: Users },
     { path: '/recruiter/matches', label: 'Matches', icon: Heart },
     { path: '/recruiter/companies', label: 'Companies', icon: Building2 },
   ];
@@ -57,10 +57,10 @@ function RecruiterLayout() {
               </div>
               <div className="flex flex-col leading-none">
                 <span className="text-lg font-bold text-slate-900 tracking-tight">
-                  Swipe<span className="text-indigo-600">Hire</span>
+                  Gig<span className="text-indigo-600">ly</span>
                 </span>
                 <span className="text-[10px] font-semibold text-indigo-500 uppercase tracking-widest -mt-0.5">
-                  Recruiter
+                  Client
                 </span>
               </div>
             </Link>

@@ -38,8 +38,11 @@ const baseOptions = (
   legacyHeaders: false,
   store: buildStore(prefix),
   message: { error: 'Too many requests, slow down.' },
-  // Skip rate limiting in tests so unit tests can spam endpoints.
-  skip: () => process.env.NODE_ENV === 'test',
+  // Rate-limit only in production. Dev/test skip entirely: the SPA polls
+  // notifications every 30s and the dashboard fans out several requests per
+  // page, so the 100/15min global backstop locks out a single local user
+  // within minutes (every endpoint starts returning 429).
+  skip: () => process.env.NODE_ENV !== 'production',
   ...overrides,
 });
 

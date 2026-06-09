@@ -1,7 +1,7 @@
 {
-  "name": "swipehire-server",
+  "name": "gigly-server",
   "version": "2.0.0",
-  "description": "SwipeHire - Production-ready Tinder for startups",
+  "description": "Gigly - Production-ready Tinder for startups",
   "main": "dist/index.js",
   "engines": {
     "node": ">=20.0.0"

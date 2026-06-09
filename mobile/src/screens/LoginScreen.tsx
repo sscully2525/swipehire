@@ -47,7 +47,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>⚡</Text>
-        <Text style={styles.title}>SwipeHire</Text>
+        <Text style={styles.title}>Gigly</Text>
         <Text style={styles.subtitle}>Find your next opportunity</Text>
       </View>
 

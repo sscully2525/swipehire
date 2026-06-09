@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/auth';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
-import { 
-  Briefcase, Users, MessageSquare, TrendingUp, 
+import {
+  Briefcase, Users, MessageSquare, TrendingUp,
   Plus, Edit2, Eye, CheckCircle, XCircle,
-  MapPin, DollarSign
+  MapPin, DollarSign, HandCoins, ChevronDown
 } from 'lucide-react';
 
 interface Job {
@@ -15,6 +15,11 @@ interface Job {
   description: string;
   salary_min: number;
   salary_max: number;
+  pricing_type?: string;
+  budget_min?: number;
+  budget_max?: number;
+  deadline?: string;
+  estimated_duration?: string;
   location: string;
   remote_allowed: boolean;
   status: string;
@@ -41,6 +46,8 @@ function RecruiterDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showJobModal, setShowJobModal] = useState(false);
+  // Which gig's bids panel is expanded (one at a time)
+  const [bidsJobId, setBidsJobId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -82,12 +89,14 @@ function RecruiterDashboard() {
   const handleCreateJob = async (jobData: any) => {
     try {
       await api.post('/recruiter/jobs', jobData);
-      toast.success('Job posted successfully');
+      toast.success('Gig posted successfully');
       setShowJobModal(false);
       fetchDashboardData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create recruiter job', err);
-      toast.error('Failed to create job');
+      // Surface the server's reason (e.g. "Create a company before posting
+      // a job") instead of a generic failure.
+      toast.error(err.response?.data?.error || 'Failed to create gig');
     }
   };
 
@@ -103,8 +112,8 @@ function RecruiterDashboard() {
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#191919]">Recruiter Dashboard</h1>
-        <p className="text-[#666666] mt-1">Manage your jobs and find top talent</p>
+        <h1 className="text-3xl font-bold text-[#191919]">Client Dashboard</h1>
+        <p className="text-[#666666] mt-1">Manage your gigs and find great freelancers</p>
       </div>
 
       {/* Stats Cards */}
@@ -116,7 +125,7 @@ function RecruiterDashboard() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#666666]">Active Jobs</p>
+              <p className="text-sm text-[#666666]">Active Gigs</p>
               <p className="text-2xl font-bold text-[#191919]">{stats?.stats?.jobs ?? jobs.length}</p>
             </div>
             <Briefcase className="w-8 h-8 text-[#0A66C2]" />
@@ -146,7 +155,7 @@ function RecruiterDashboard() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#666666]">Interested Candidates</p>
+              <p className="text-sm text-[#666666]">Interested Freelancers</p>
               <p className="text-2xl font-bold text-[#191919]">{stats?.stats?.interestedCandidates ?? 0}</p>
             </div>
             <MessageSquare className="w-8 h-8 text-purple-600" />
@@ -179,7 +188,7 @@ function RecruiterDashboard() {
               : 'text-[#666666] hover:text-[#191919]'
           }`}
         >
-          My Jobs
+          My Gigs
         </button>
         <button
           onClick={() => setActiveTab('candidates')}
@@ -189,7 +198,7 @@ function RecruiterDashboard() {
               : 'text-[#666666] hover:text-[#191919]'
           }`}
         >
-          Candidates
+          Freelancers
         </button>
         <button
           onClick={() => setActiveTab('analytics')}
@@ -207,13 +216,13 @@ function RecruiterDashboard() {
       {activeTab === 'jobs' && (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="section-title">Active Job Postings</h2>
+            <h2 className="section-title">Active Gig Postings</h2>
             <button 
               onClick={() => setShowJobModal(true)}
               className="btn-primary flex items-center space-x-2"
             >
               <Plus className="w-4 h-4" />
-              <span>Post New Job</span>
+              <span>Post a Gig</span>
             </button>
           </div>
 
@@ -235,7 +244,12 @@ function RecruiterDashboard() {
                       </span>
                       <span className="flex items-center">
                         <DollarSign className="w-4 h-4 mr-1" />
-                        ${job.salary_min?.toLocaleString()} - ${job.salary_max?.toLocaleString()}
+                        {job.pricing_type === 'fixed' || job.pricing_type === 'hourly'
+                          ? `$${(job.budget_min ?? job.budget_max)?.toLocaleString()}${
+                              job.budget_max && job.budget_min && job.budget_max !== job.budget_min
+                                ? ` - $${job.budget_max.toLocaleString()}` : ''
+                            }${job.pricing_type === 'hourly' ? '/hr' : ''}`
+                          : `$${job.salary_min?.toLocaleString()} - $${job.salary_max?.toLocaleString()}`}
                       </span>
                       {job.remote_allowed && (
                         <span className="badge-primary">Remote</span>
@@ -262,19 +276,31 @@ function RecruiterDashboard() {
                       Posted {new Date(job.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <span className={`badge ${
-                    job.status === 'active' ? 'badge-success' : 'badge-secondary'
-                  }`}>
-                    {job.status}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setBidsJobId(bidsJobId === job.id ? null : job.id)}
+                      className="flex items-center gap-1 text-sm font-medium text-[#0A66C2] hover:underline"
+                    >
+                      <HandCoins className="w-4 h-4" />
+                      Bids
+                      <ChevronDown className={`w-3 h-3 transition-transform ${bidsJobId === job.id ? 'rotate-180' : ''}`} />
+                    </button>
+                    <span className={`badge ${
+                      job.status === 'active' ? 'badge-success' : 'badge-secondary'
+                    }`}>
+                      {job.status}
+                    </span>
+                  </div>
                 </div>
+
+                {bidsJobId === job.id && <GigBidsPanel jobId={job.id} />}
               </motion.div>
             ))}
             
             {jobs.length === 0 && (
               <div className="text-center py-12 card">
                 <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No active jobs. Post your first job!</p>
+                <p className="text-gray-500">No active gigs. Post your first gig!</p>
               </div>
             )}
           </div>
@@ -284,7 +310,7 @@ function RecruiterDashboard() {
       {/* Candidates Tab */}
       {activeTab === 'candidates' && (
         <div>
-          <h2 className="section-title mb-4">Matched Candidates</h2>
+          <h2 className="section-title mb-4">Matched Freelancers</h2>
           <div className="grid md:grid-cols-2 gap-4">
             {candidates.map((candidate) => (
               <motion.div 
@@ -327,7 +353,7 @@ function RecruiterDashboard() {
             {candidates.length === 0 && (
               <div className="text-center py-12 card col-span-2">
                 <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No candidates yet. Post jobs to get matches!</p>
+                <p className="text-gray-500">No freelancers yet. Post gigs to get matches!</p>
               </div>
             )}
           </div>
@@ -337,14 +363,14 @@ function RecruiterDashboard() {
       {/* Analytics Tab */}
       {activeTab === 'analytics' && (
         <div>
-          <h2 className="section-title mb-4">Recruitment Analytics</h2>
+          <h2 className="section-title mb-4">Gig Analytics</h2>
           <div className="grid md:grid-cols-2 gap-4 mb-6">
             <div className="card p-4">
-              <p className="text-sm text-[#666666] mb-1">Total Jobs Posted</p>
+              <p className="text-sm text-[#666666] mb-1">Total Gigs Posted</p>
               <p className="text-3xl font-bold text-[#191919]">{stats?.stats?.jobs ?? jobs.length}</p>
             </div>
             <div className="card p-4">
-              <p className="text-sm text-[#666666] mb-1">Interested Candidates</p>
+              <p className="text-sm text-[#666666] mb-1">Interested Freelancers</p>
               <p className="text-3xl font-bold text-[#191919]">{stats?.stats?.interestedCandidates ?? candidates.length}</p>
             </div>
             <div className="card p-4">
@@ -358,7 +384,7 @@ function RecruiterDashboard() {
           </div>
           {stats?.recentActivity?.length > 0 && (
             <div className="card p-4">
-              <h3 className="font-semibold text-[#191919] mb-3">Recent Candidate Activity</h3>
+              <h3 className="font-semibold text-[#191919] mb-3">Recent Freelancer Activity</h3>
               <div className="space-y-3">
                 {stats.recentActivity.map((a: any, i: number) => (
                   <div key={i} className="flex items-center justify-between text-sm">
@@ -382,7 +408,7 @@ function RecruiterDashboard() {
             className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
           >
             <div className="p-6 border-b border-[#E0E0E0] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#191919]">Post New Job</h2>
+              <h2 className="text-xl font-bold text-[#191919]">Post a Gig</h2>
               <button 
                 onClick={() => setShowJobModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-full"
@@ -400,41 +426,144 @@ function RecruiterDashboard() {
   );
 }
 
-// Job Form Component
+// Bids on a single gig — expandable panel under each job card. Lets the gig
+// owner review freelancer offers and accept/decline them (Gigly flow).
+function GigBidsPanel({ jobId }: { jobId: string }) {
+  const [bids, setBids] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchBids = async () => {
+    try {
+      const res = await api.get(`/bids/gig/${jobId}`);
+      setBids(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      toast.error('Failed to load bids');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBids();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]);
+
+  const decideBid = async (bidId: string, status: 'accepted' | 'declined') => {
+    try {
+      await api.patch(`/bids/${bidId}/status`, { status });
+      toast.success(status === 'accepted' ? 'Bid accepted!' : 'Bid declined');
+      fetchBids();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update bid');
+    }
+  };
+
+  if (loading) {
+    return <div className="mt-4 pt-4 border-t border-[#E0E0E0] text-sm text-[#8C8C8C]">Loading bids…</div>;
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-[#E0E0E0]">
+      {bids.length === 0 ? (
+        <p className="text-sm text-[#8C8C8C]">No bids on this gig yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {bids.map((bid) => (
+            <div key={bid.id} className="flex items-start justify-between gap-3 bg-[#F9FAFB] rounded-lg p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[#191919]">
+                  {bid.first_name} {bid.last_name}
+                  {bid.title ? <span className="font-normal text-[#666666]"> · {bid.title}</span> : null}
+                </p>
+                <p className="text-sm text-[#191919] mt-0.5">
+                  ${Number(bid.amount).toLocaleString()}
+                  {bid.pricing_type === 'hourly' ? '/hr' : ' fixed'}
+                  {bid.estimated_duration ? ` · ${bid.estimated_duration}` : ''}
+                </p>
+                {bid.message && (
+                  <p className="text-xs text-[#666666] mt-1 line-clamp-2">{bid.message}</p>
+                )}
+              </div>
+              <div className="flex-shrink-0">
+                {bid.status === 'pending' ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => decideBid(bid.id, 'accepted')}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => decideBid(bid.id, 'declined')}
+                      className="px-3 py-1.5 text-xs font-medium text-[#666666] bg-white border border-[#E0E0E0] hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                ) : (
+                  <span className={`badge ${
+                    bid.status === 'accepted' ? 'badge-success' : 'badge-secondary'
+                  }`}>
+                    {bid.status}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Gig/Job Form Component — gig-first (fixed or hourly price point), with
+// "Salaried role" kept as a legacy option.
 function JobForm({ onSubmit, onCancel }: { onSubmit: (data: any) => void, onCancel: () => void }) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     requirements: '',
+    pricing_type: 'fixed',
+    budget_min: '',
+    budget_max: '',
+    deadline: '',
+    estimated_duration: '',
     salary_min: '',
     salary_max: '',
     location: '',
     remote_allowed: true,
-    employment_type: 'full-time',
+    employment_type: 'contract',
     experience_level: 'mid'
   });
+
+  const isGig = formData.pricing_type !== 'salary';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
       ...formData,
       requirements: formData.requirements.split('\n').filter(r => r.trim()),
-      salary_min: parseInt(formData.salary_min),
-      salary_max: parseInt(formData.salary_max)
+      budget_min: isGig && formData.budget_min ? parseInt(formData.budget_min) : undefined,
+      budget_max: isGig && formData.budget_max ? parseInt(formData.budget_max) : undefined,
+      deadline: isGig && formData.deadline ? formData.deadline : undefined,
+      estimated_duration: isGig && formData.estimated_duration ? formData.estimated_duration : undefined,
+      salary_min: !isGig && formData.salary_min ? parseInt(formData.salary_min) : undefined,
+      salary_max: !isGig && formData.salary_max ? parseInt(formData.salary_max) : undefined,
+      employment_type: isGig ? 'contract' : formData.employment_type,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-[#666666] mb-1">Job Title</label>
+        <label className="block text-sm font-medium text-[#666666] mb-1">Gig Title</label>
         <input
           type="text"
           required
           className="input-field"
           value={formData.title}
           onChange={(e) => setFormData({...formData, title: e.target.value})}
-          placeholder="e.g. Senior Full Stack Engineer"
+          placeholder="e.g. Build a landing page in React"
         />
       </div>
 
@@ -461,30 +590,98 @@ function JobForm({ onSubmit, onCancel }: { onSubmit: (data: any) => void, onCanc
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-[#666666] mb-1">Min Salary</label>
-          <input
-            type="number"
-            required
-            className="input-field"
-            value={formData.salary_min}
-            onChange={(e) => setFormData({...formData, salary_min: e.target.value})}
-            placeholder="80000"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[#666666] mb-1">Max Salary</label>
-          <input
-            type="number"
-            required
-            className="input-field"
-            value={formData.salary_max}
-            onChange={(e) => setFormData({...formData, salary_max: e.target.value})}
-            placeholder="150000"
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-[#666666] mb-1">Pricing</label>
+        <select
+          className="input-field"
+          value={formData.pricing_type}
+          onChange={(e) => setFormData({...formData, pricing_type: e.target.value})}
+        >
+          <option value="fixed">Fixed price gig</option>
+          <option value="hourly">Hourly gig</option>
+          <option value="salary">Salaried role</option>
+        </select>
       </div>
+
+      {isGig ? (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-[#666666] mb-1">
+                Budget {formData.pricing_type === 'hourly' ? '($/hr, low)' : '(low)'}
+              </label>
+              <input
+                type="number"
+                required
+                min="1"
+                className="input-field"
+                value={formData.budget_min}
+                onChange={(e) => setFormData({...formData, budget_min: e.target.value})}
+                placeholder={formData.pricing_type === 'hourly' ? '40' : '500'}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#666666] mb-1">
+                Budget {formData.pricing_type === 'hourly' ? '($/hr, high)' : '(high)'}
+              </label>
+              <input
+                type="number"
+                min="1"
+                className="input-field"
+                value={formData.budget_max}
+                onChange={(e) => setFormData({...formData, budget_max: e.target.value})}
+                placeholder={formData.pricing_type === 'hourly' ? '80' : '1500'}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-[#666666] mb-1">Deadline (optional)</label>
+              <input
+                type="date"
+                className="input-field"
+                value={formData.deadline}
+                onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#666666] mb-1">Estimated time (optional)</label>
+              <input
+                type="text"
+                className="input-field"
+                value={formData.estimated_duration}
+                onChange={(e) => setFormData({...formData, estimated_duration: e.target.value})}
+                placeholder="e.g. 2 weeks"
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-[#666666] mb-1">Min Salary</label>
+            <input
+              type="number"
+              required
+              className="input-field"
+              value={formData.salary_min}
+              onChange={(e) => setFormData({...formData, salary_min: e.target.value})}
+              placeholder="80000"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#666666] mb-1">Max Salary</label>
+            <input
+              type="number"
+              required
+              className="input-field"
+              value={formData.salary_max}
+              onChange={(e) => setFormData({...formData, salary_max: e.target.value})}
+              placeholder="150000"
+            />
+          </div>
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-[#666666] mb-1">Location</label>

@@ -18,6 +18,30 @@ interface AuthenticatedSocket extends Socket {
   userName?: string;
 }
 
+/**
+ * Authorize a socket's user for a match. The candidate must own the match;
+ * a recruiter/admin must own the startup linked to it. Returns whether access
+ * is allowed plus which side the user is on (so callers can pick senderType).
+ * Centralizing this closes two holes where `send_message` and `load_messages`
+ * trusted the role alone and never verified ownership.
+ */
+const canAccessMatch = async (
+  match: { user_id: string; startup_id: string },
+  socket: AuthenticatedSocket
+): Promise<{ ok: boolean; isCandidate: boolean }> => {
+  const isCandidate = match.user_id === socket.userId;
+  if (isCandidate) return { ok: true, isCandidate };
+
+  const isRecruiter = socket.userRole === 'recruiter' || socket.userRole === 'admin';
+  if (!isRecruiter) return { ok: false, isCandidate };
+
+  const ownerCheck = await query(
+    'SELECT id FROM startups WHERE id = $1 AND created_by = $2',
+    [match.startup_id, socket.userId]
+  );
+  return { ok: ownerCheck.rows.length > 0, isCandidate };
+};
+
 export const initSocketHandlers = (io: Server) => {
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
@@ -67,25 +91,10 @@ export const initSocketHandlers = (io: Server) => {
           return;
         }
 
-        const isCandidate = match.user_id === socket.userId;
-        const isRecruiter = socket.userRole === 'recruiter' || socket.userRole === 'admin';
-
-        // Verify access: candidate owns match, or recruiter owns the company
-        if (!isCandidate && !isRecruiter) {
+        const { ok, isCandidate } = await canAccessMatch(match, socket);
+        if (!ok) {
           socket.emit('error', { message: 'Unauthorized' });
           return;
-        }
-
-        if (isRecruiter && !isCandidate) {
-          // Verify recruiter owns the company linked to this match
-          const ownerCheck = await query(
-            'SELECT id FROM startups WHERE id = $1 AND created_by = $2',
-            [match.startup_id, socket.userId]
-          );
-          if (ownerCheck.rows.length === 0) {
-            socket.emit('error', { message: 'Unauthorized' });
-            return;
-          }
         }
 
         socket.join(`match:${matchId}`);
@@ -115,10 +124,8 @@ export const initSocketHandlers = (io: Server) => {
           return;
         }
 
-        const isCandidate = match.user_id === socket.userId;
-        const isRecruiter = socket.userRole === 'recruiter' || socket.userRole === 'admin';
-
-        if (!isCandidate && !isRecruiter) {
+        const { ok, isCandidate } = await canAccessMatch(match, socket);
+        if (!ok) {
           socket.emit('error', { message: 'Unauthorized' });
           return;
         }
@@ -177,6 +184,21 @@ export const initSocketHandlers = (io: Server) => {
     socket.on('load_messages', async (data: { matchId: string; page: number }) => {
       try {
         const { matchId, page } = data;
+
+        // Verify the user actually belongs to this match before handing over
+        // its history — previously any authenticated socket could read any
+        // match's messages just by guessing the id.
+        const match = await getMatchById(matchId);
+        if (!match) {
+          socket.emit('error', { message: 'Match not found' });
+          return;
+        }
+        const { ok } = await canAccessMatch(match, socket);
+        if (!ok) {
+          socket.emit('error', { message: 'Unauthorized' });
+          return;
+        }
+
         const limit = 20;
         const offset = (page - 1) * limit;
         const messages = await getMessagesByMatch(matchId, limit, offset);

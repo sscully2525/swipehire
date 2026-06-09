@@ -240,8 +240,12 @@ docker-clean-all: ## Remove all containers + images + volumes + networks
 docker-prune: ## Full Docker system prune — removes EVERYTHING unused
 	@echo -e "$(R)Docker system prune (removes all unused resources)...$(N)"
 	@if command -v docker &>/dev/null; then \
-		docker system prune -af --volumes; \
-		echo -e "$(G)✅  Docker system purged$(N)"; \
+		if docker info &>/dev/null; then \
+			docker system prune -af --volumes; \
+			echo -e "$(G)✅  Docker system purged$(N)"; \
+		else \
+			echo -e "$(Y)⚠️   Docker daemon not running — skipping$(N)"; \
+		fi; \
 	else \
 		echo -e "$(Y)⚠️   Docker not installed — skipping$(N)"; \
 	fi
@@ -297,10 +301,10 @@ logs-client: ## Tail client log only
 reset-soft: stop clean start-db install ## Stop → clean builds → reinstall → start DB
 	@echo -e "$(G)✅  Soft reset done. Run 'make dev' to start.$(N)"
 
-reset: stop-all clean-all db-reset redis-flush install ## Stop all → clean all → reset DB → reinstall
+reset: stop clean-all start-db db-reset redis-flush install ## Stop app → clean all → reset DB → reinstall
 	@echo -e "$(G)✅  Full reset done. Run 'make dev' to start fresh.$(N)"
 
-nuke: stop-all clean-all docker-prune db-reset redis-flush ## ☢️  NUCLEAR: reset everything including Docker
+nuke: stop clean-all docker-prune start-db db-reset redis-flush stop-db ## ☢️  NUCLEAR: reset everything including Docker, then stop DB services
 	@echo -e "$(R)☢️  Everything has been nuked.$(N)"
 	@echo -e "Run 'make install && make dev' to start fresh."
 

@@ -17,7 +17,7 @@ const isTest = process.env.NODE_ENV === 'test';
 const baseOptions: pino.LoggerOptions = {
   level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
   base: {
-    service: 'swipehire-server',
+    service: 'gigly-server',
     env: process.env.NODE_ENV || 'development',
   },
   redact: {

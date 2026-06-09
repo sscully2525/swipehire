@@ -1,4 +1,4 @@
-# SwipeHire - Testing & Development Guide
+# Gigly - Testing & Development Guide
 
 ## Local Development with Docker
 

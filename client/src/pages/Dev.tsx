@@ -20,7 +20,7 @@ const ACCOUNTS = [
     emoji: '🏢',
     password: 'test123456',
     gradient: 'from-blue-600 to-cyan-600',
-    description: 'SwipeHire Labs — 3 jobs posted',
+    description: 'Gigly Labs — 3 jobs posted',
   },
   {
     email: 'alice@test.com',

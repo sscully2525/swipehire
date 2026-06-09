@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import {
-  createSwipe,
+  createSwipeWithLimit,
   checkForMatch,
   createMatch,
   getRemainingSwipes,
@@ -28,25 +28,23 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
     }
     
     const dailyLimit = getSwipeLimit(user.subscription_tier);
-    
-    // Check remaining swipes for right swipes
-    if (direction === 'right') {
-      const remaining = await getRemainingSwipes(req.userId!, dailyLimit);
-      if (remaining <= 0) {
-        return res.status(403).json({ 
-          error: 'Daily swipe limit reached',
-          upgradeRequired: true,
-          currentTier: user.subscription_tier,
-          limit: dailyLimit
-        });
-      }
-    }
-    
+
     // Calculate AI match score
     const aiMatchScore = await calculateMatchScore(req.userId!, jobId);
-    
-    // Record the swipe
-    const swipe = await createSwipe(req.userId!, jobId, direction, aiMatchScore);
+
+    // Check the limit and record the swipe atomically — a separate
+    // check-then-insert here was racy under rapid taps.
+    const { swipe, limitExceeded } = await createSwipeWithLimit(
+      req.userId!, jobId, direction, dailyLimit, aiMatchScore
+    );
+    if (limitExceeded) {
+      return res.status(403).json({
+        error: 'Daily swipe limit reached',
+        upgradeRequired: true,
+        currentTier: user.subscription_tier,
+        limit: dailyLimit
+      });
+    }
     
     // Check for match on right swipe
     let match = null;

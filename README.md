@@ -1,4 +1,4 @@
-# SwipeHire
+# Gigly
 
 A Tinder-style job-matching platform. Candidates swipe jobs, recruiters swipe candidates, mutual matches unlock chat.
 

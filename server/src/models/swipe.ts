@@ -1,4 +1,4 @@
-import { query } from '../db';
+import { query, getClient } from '../db';
 import { redis } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -77,7 +77,7 @@ export const createSwipe = async (
   const result = await query(
     `INSERT INTO swipes (id, user_id, job_id, direction, ai_match_score)
      VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (user_id, job_id) 
+     ON CONFLICT (user_id, job_id)
      DO UPDATE SET direction = $4, ai_match_score = $5, created_at = CURRENT_TIMESTAMP
      RETURNING *`,
     [id, userId, jobId, direction, aiMatchScore]
@@ -86,6 +86,61 @@ export const createSwipe = async (
   await invalidateJobsCacheForUser(userId);
 
   return result.rows[0];
+};
+
+/**
+ * Atomically check the daily right-swipe limit and record the swipe in one
+ * transaction. A per-user advisory lock serializes concurrent swipes from the
+ * same user, closing the check-then-insert race where rapid taps could exceed
+ * the cap. Left swipes never count against the limit.
+ *
+ * Returns `{ swipe: null, limitExceeded: true }` when the user is out of
+ * right-swipes for the day.
+ */
+export const createSwipeWithLimit = async (
+  userId: string,
+  jobId: string,
+  direction: 'left' | 'right',
+  dailyLimit: number,
+  aiMatchScore?: number
+): Promise<{ swipe: Swipe | null; limitExceeded: boolean }> => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    // Scope the advisory lock to this user; released automatically on
+    // COMMIT/ROLLBACK. hashtext() maps the UUID to the bigint key space.
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [userId]);
+
+    if (direction === 'right') {
+      const countRes = await client.query(
+        `SELECT COUNT(*) AS used FROM swipes
+         WHERE user_id = $1 AND direction = 'right' AND created_at > CURRENT_DATE`,
+        [userId]
+      );
+      if (Number(countRes.rows[0].used) >= dailyLimit) {
+        await client.query('ROLLBACK');
+        return { swipe: null, limitExceeded: true };
+      }
+    }
+
+    const result = await client.query(
+      `INSERT INTO swipes (id, user_id, job_id, direction, ai_match_score)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id, job_id)
+       DO UPDATE SET direction = $4, ai_match_score = $5, created_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [uuidv4(), userId, jobId, direction, aiMatchScore]
+    );
+    await client.query('COMMIT');
+
+    await invalidateJobsCacheForUser(userId);
+    return { swipe: result.rows[0], limitExceeded: false };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 /**
@@ -298,7 +353,12 @@ export const getRemainingSwipes = async (userId: string, dailyLimit: number): Pr
     [dailyLimit, userId]
   );
 
-  return Math.max(0, result.rows[0]?.remaining || dailyLimit);
+  // `remaining` is `$1 - COUNT(*)`, an aggregate that always returns one row.
+  // pg may hand it back as a numeric string ("0"), so coerce explicitly.
+  // Using `||` here was a bug: a remaining count of 0 is falsy and fell back
+  // to the full dailyLimit, letting capped users keep swiping forever.
+  const remaining = result.rows[0]?.remaining;
+  return Math.max(0, remaining != null ? Number(remaining) : dailyLimit);
 };
 
 export const getSwipeStats = async (userId: string): Promise<any> => {

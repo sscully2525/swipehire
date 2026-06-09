@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'SwipeHire',
-        short_name: 'SwipeHire',
+        name: 'Gigly',
+        short_name: 'Gigly',
         description: 'Find your next startup opportunity',
         theme_color: '#3b82f6',
         icons: [

@@ -36,7 +36,7 @@ function Candidates() {
       const response = await api.get('/recruiter/candidates');
       setCandidates(response.data);
     } catch {
-      toast.error('Failed to load candidates');
+      toast.error('Failed to load freelancers');
     } finally {
       setLoading(false);
     }
@@ -104,7 +104,7 @@ function Candidates() {
           🎉
         </motion.div>
         <h2 className="text-2xl font-bold text-gray-900">All caught up!</h2>
-        <p className="mt-2 text-gray-600">You've reviewed all interested candidates.</p>
+        <p className="mt-2 text-gray-600">You've reviewed all interested freelancers.</p>
       </div>
     );
   }
@@ -112,7 +112,7 @@ function Candidates() {
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Interested Candidates ({candidates.length - currentIndex} remaining)
+        Interested Freelancers ({candidates.length - currentIndex} remaining)
       </h1>
 
       <div className="relative h-[600px]">

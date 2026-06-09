@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>()(
         })),
     }),
     {
-      name: 'swipehire-auth',
+      name: 'gigly-auth',
       storage: createJSONStorage(() => AsyncStorage),
     }
   )

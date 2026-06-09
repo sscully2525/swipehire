@@ -11,6 +11,7 @@ import path from 'path';
 import authRoutes from './routes/auth';
 import startupRoutes from './routes/startups';
 import swipeRoutes from './routes/swipes';
+import bidRoutes from './routes/bids';
 import matchRoutes from './routes/matches';
 import profileRoutes from './routes/profile';
 import profileEnhancedRoutes from './routes/profile-enhanced';
@@ -74,7 +75,7 @@ if (isProduction) {
 // confirm Railway env vars are wired through.
 logger.info(
   { redisUrl: redactRedisUrl(process.env.REDIS_URL), nodeEnv: process.env.NODE_ENV || 'development' },
-  '🚀 SwipeHire server bootstrap',
+  '🚀 Gigly server bootstrap',
 );
 
 // Initialize Redis (background; HTTP server still binds even if Redis is slow)
@@ -163,6 +164,7 @@ app.use('/api/auth/refresh', refreshLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/startups', startupRoutes);
 app.use('/api/swipes', swipeLimiter, swipeRoutes);
+app.use('/api/bids', bidRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/profile-enhanced', profileEnhancedRoutes);
@@ -260,7 +262,7 @@ const setupDatabase = async () => {
 };
 
 httpServer.listen(PORT, () => {
-  logger.info({ port: PORT }, `🚀 SwipeHire server v2.1 running`);
+  logger.info({ port: PORT }, `🚀 Gigly server v2.1 running`);
   setupDatabase();
 });
 

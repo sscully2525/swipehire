@@ -10,8 +10,8 @@ container has no working `REDIS_URL`. Redis is **required** for:
 
 ## Fix in Railway (one-time)
 
-1. **Add the Redis plugin** to the SwipeHire project:
-   - Railway dashboard → SwipeHire project → **+ New** → **Database** →
+1. **Add the Redis plugin** to the Gigly project:
+   - Railway dashboard → Gigly project → **+ New** → **Database** →
      **Add Redis**.
 2. **Reference it from the server service.**
    - Open the server service → **Variables** tab → **+ New Variable**.

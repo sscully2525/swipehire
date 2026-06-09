@@ -6,7 +6,7 @@ import api from '../lib/api';
 import {
   Briefcase, Heart, MessageSquare, BarChart3,
   Bell, ChevronDown, Menu, X, User, CreditCard,
-  LogOut, Zap, Grid3X3
+  LogOut, Zap, Grid3X3, HandCoins
 } from 'lucide-react';
 
 function Layout() {
@@ -55,7 +55,8 @@ function Layout() {
   };
 
   const navItems = [
-    { path: '/swipe', label: 'Jobs', icon: Briefcase },
+    { path: '/swipe', label: 'Gigs', icon: Briefcase },
+    { path: '/bids', label: 'My Bids', icon: HandCoins },
     { path: '/matches', label: 'Matches', icon: Heart },
     { path: '/messages', label: 'Messages', icon: MessageSquare },
     { path: '/analytics', label: 'Insights', icon: BarChart3 },
@@ -86,7 +87,7 @@ function Layout() {
                 <Zap className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold text-slate-900 tracking-tight">
-                Swipe<span className="text-blue-600">Hire</span>
+                Gig<span className="text-blue-600">ly</span>
               </span>
               {planBadge}
             </Link>

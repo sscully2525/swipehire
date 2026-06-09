@@ -1,7 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../db';
-import { verifyAccessToken, generateTokens, storeRefreshToken, findUserByEmail } from '../models/user';
+import { generateTokens, storeRefreshToken, findUserByEmail } from '../models/user';
+import { authenticate, requireAdmin } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../logger';
 
@@ -27,27 +28,8 @@ const requireSetupToken = (req: Request, res: Response, next: NextFunction) => {
 
 router.use(requireSetupToken);
 
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-  try {
-    const decoded = verifyAccessToken(token);
-    (req as any).userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
-const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  const userId = (req as any).userId;
-  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-  const result = await query('SELECT role FROM users WHERE id = $1', [userId]);
-  if (result.rows[0]?.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-};
+// `authenticate` and `requireAdmin` are imported from ../middleware/auth
+// (shared with every other route) rather than redefined here.
 
 // Only available outside production
 const devOnly = (req: Request, res: Response, next: NextFunction) => {
@@ -482,8 +464,8 @@ router.post('/nuke-and-seed', devOnly, async (req: Request, res: Response) => {
     const companyId = uuidv4();
     await query(
       `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by, is_demo, source)
-       VALUES ($1,'SwipeHire Labs','swipehire-labs',
-         'The company behind SwipeHire — building the future of recruiting.',
+       VALUES ($1,'Gigly Labs','swipehire-labs',
+         'The company behind Gigly — building the future of recruiting.',
          'Match every great candidate with their perfect startup.',
          'Series A','San Francisco, CA','20-50','https://swipehire.com',
          true, true, $2, false, 'user')`,
@@ -500,6 +482,34 @@ router.post('/nuke-and-seed', devOnly, async (req: Request, res: Response) => {
          VALUES ($1,$2,$3,$4,$5,$6,'San Francisco, CA',true,$7,$8,'active')`,
         [uuidv4(), companyId, j.title, j.desc, j.smin, j.smax, `{${j.stack.join(',')}}`, j.level]
       );
+    }
+
+    // Create admin's company + sample priced gigs, so the admin account can
+    // post/review gigs immediately ("Failed to create gig" was a 400 from
+    // owning no company).
+    const adminRow = await query("SELECT id FROM users WHERE email = 'sean@swipehire.com'");
+    if (adminRow.rows.length > 0) {
+      const adminCompanyId = uuidv4();
+      await query(
+        `INSERT INTO startups (id, name, slug, description, mission, stage, location, size, website, verified, featured, created_by, is_demo, source)
+         VALUES ($1,'Sean''s Studio','seans-studio',
+           'Sean''s gig posting workspace for testing the client side.',
+           'Ship great gigs fast.',
+           'Seed','Remote','1-10','https://gigly.example',
+           true, false, $2, false, 'user')`,
+        [adminCompanyId, adminRow.rows[0].id]
+      );
+      const testGigs = [
+        { title: 'Build a marketing landing page', desc: 'One-page React site, mobile-first, deployed to Vercel.', type: 'fixed', bmin: 500, bmax: 1500, dur: '2 weeks', stack: ['React', 'Tailwind'] },
+        { title: 'Fix flaky Playwright tests', desc: 'Stabilize our e2e suite, ~12 flaky specs.', type: 'hourly', bmin: 50, bmax: 90, dur: '10 hours', stack: ['Playwright', 'TypeScript'] },
+      ];
+      for (const g of testGigs) {
+        await query(
+          `INSERT INTO jobs (id, startup_id, title, description, pricing_type, budget_min, budget_max, estimated_duration, location, remote_allowed, tech_stack, employment_type, status)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'Remote',true,$9,'contract','active')`,
+          [uuidv4(), adminCompanyId, g.title, g.desc, g.type, g.bmin, g.bmax, g.dur, `{${g.stack.join(',')}}`]
+        );
+      }
     }
 
     // Seed demo companies

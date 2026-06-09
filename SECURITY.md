@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you believe you have found a security vulnerability in SwipeHire,
+If you believe you have found a security vulnerability in Gigly,
 please report it privately rather than opening a public issue.
 
 **Contact:** `security@<your-domain>` *(placeholder — replace with a real
